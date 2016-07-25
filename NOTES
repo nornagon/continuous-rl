@@ -1,0 +1,72 @@
+GameKit is a tool for making high-fidelity game prototypes. Specifically, for
+_me_ to make high-fidelity game prototypes. I've had enough of starting from
+scratch for every new idea. GameKit collects tools and approaches I like and
+use often in a single place where they can evolve and become robustified over
+time.
+
+GameKit is a copy-in library, not a dependency in the normal sense. I expect
+that every time I use it, I'll need to tweak it a bit in one way or another to
+get it to behave the way I want. If those tweaks can inform improvement in the
+main "base", then all the better--but if they're just hacks for that one game,
+then that's fine too.
+
+The approaches in GameKit could be adapted to other languages with relative
+ease, but that would be missing the point. Which is that one should spend the
+minimum amount of time futzing around with the _tools_ you're using, and
+instead focus on doing the actual thing you want to do. The tool should get out
+of your way and let you express your thoughts.
+
+Here are some of the guiding philosophies behind GameKit:
+
+== Scala
+
+I chose Scala to write GameKit in, not because it's perfect but because it's
+pretty good and I'm familiar with it. I also considered Elm, Haskell,
+ClojureScript, PureScript, and TypeScript, and rejected them for one reason or
+another: Elm doesn't really work on the server (and doesn't have good <canvas>
+support), Haskell doesn't really work in the browser, ClojureScript doesn't
+have static types, PureScript is too small as yet to have good
+community/library support, and TypeScript's type system is much less powerful
+than Scala's. And in the end, I'm really familiar with Scala.
+
+=== Static typing
+
+GameKit is written in a statically-typed language, because [I like it when
+computers help me not to make mistakes][1].  All else equal, it's better to
+catch an error at compile time rather than run time. Of course, not all else is
+equal--it's often considered "more work" to bend a static type system to one's
+will than it is a dynamic one--but actually I think that type systems help the
+programmer to do design work up front, and often moves the catching of mistakes
+all the way up from run time past compile time even further forward to _design_
+time.
+
+=== Compile to JS
+
+JavaScript is everywhere. Enough said.
+
+=== Isomorphic
+
+The language should work on the server as well as the client, to support
+networked multiplayer games.
+
+== Components
+
+=== Functions first
+
+The function is the minimal composable unit of programming. Most of the
+features of GameKit are written in terms of simple functions of simple data
+types first, then composed into a probably-useful structure if necessary or
+convenient. If the structure inhibits the project, go around it and use the
+functions directly. That way you don't have to throw out the whole feature.
+
+=== Not general
+
+GameKit is for writing 2D canvas-based browser games. It doesn't support
+building 3D games, iOS games, email clients, or anything else. Not to say the
+approaches wouldn't necessarily work in those situations (and the code could
+certainly be extended to them), it's not a concern of the kit because most of
+the games I want to make are 2D browser games.
+
+=== Reusable parts
+
+[1]: https://medium.com/@nornagon/type-systems-970b57975b74#.glaol6agx

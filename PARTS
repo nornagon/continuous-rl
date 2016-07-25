@@ -1,0 +1,15 @@
+Things GameKit should have, in rough order of priority:
+
+- scene graph / renderer
+  - and interactivity for same
+- sprite sheets
+- hex grid
+- isometric grid
+- geometry kit
+- ui kit
+- physics engine support
+- standard algorithms & data structures
+  - BFS, DFS, A*
+  - quad tree
+- asset loader
+- sound effects and music
