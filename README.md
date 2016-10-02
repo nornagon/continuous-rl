@@ -13,3 +13,5 @@ only works in Chrome (and maybe Firefox) because it needs
 
 There's not much here yet beyond a prototype, but I think this is an
 interesting start!
+
+Graphics are all by the inimitable [Kenney](http://kenney.nl/). [Buy their asset packs!](https://kenney.itch.io/) They're amazing.
