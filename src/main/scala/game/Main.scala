@@ -1,18 +1,17 @@
 package game
 
-import kit.{Mat33, Vec2}
+import kit.{Circle2, Mat33, Segment2, Vec2}
 import org.scalajs.dom
 import org.scalajs.dom.ext.KeyCode
 import org.scalajs.dom.{FocusEvent, KeyboardEvent, MouseEvent, html}
 import scala.collection.mutable
-import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExport
 import kit.CanvasHelpers._
 
 
 class World {
   var player = Vec2(0, 0)
-  val mobs = mutable.Seq(Vec2(100, 100), Vec2(100, 300))
+  var mobs = mutable.Seq(Vec2(100, 100), Vec2(100, 300))
 }
 
 @JSExport
@@ -25,62 +24,87 @@ object Main {
   var mouseDown: Boolean = false
   var viewMat: Mat33 = _
 
+  var attacking = false
+  var attackDirection: Vec2 = Vec2(1, 0)
+  var attackT = 0d
+
+  def sword: Segment2 = {
+    val d = attackT / attackLength * Math.PI
+    val extension = Math.sin(d) * 10
+    val base = world.player + (world.player -> mouseWorldPos).normed.perp * 3
+    Segment2(base, base + Vec2.forAngle(attackDirection.toAngle + Math.cos(d)) * extension)
+  }
+
+  val attackLength = 25
+
   def update(): Unit = {
     var acted = false
-    if (keysDown contains KeyCode.Right) {
-      world.player += Vec2(1, 0)
+    if ((keysDown contains KeyCode.Space) && !attacking && (world.player -> mouseWorldPos).length >= 4) {
+      attacking = true
+      attackDirection = (world.player -> mouseWorldPos).normed
+      attackT = 0
       acted = true
-    }
-    if (keysDown contains KeyCode.Left) {
-      world.player -= Vec2(1, 0)
+    } else if (attacking) {
+      attackT += 1
+      world.mobs = world.mobs.filterNot { mob => sword intersects Circle2(mob, 4) }
       acted = true
-    }
-    if (keysDown contains KeyCode.Up) {
-      world.player -= Vec2(0, 1)
-      acted = true
-    }
-    if (keysDown contains KeyCode.Down) {
-      world.player += Vec2(0, 1)
-      acted = true
-    }
-    if (mouseDown) {
-      if ((world.player -> mouseWorldPos).length >= 4) {
-        world.player += (world.player -> mouseWorldPos).normed * (if (keysDown.contains(KeyCode.Shift)) 3 else 1)
+      if (attackT >= attackLength) {
+        attacking = false
       }
-      acted = true
+    } else {
+      if (mouseDown) {
+        if ((world.player -> mouseWorldPos).length >= 4) {
+          world.player += (world.player -> mouseWorldPos).normed * (if (keysDown.contains(KeyCode.Shift)) 3 else 1)
+        }
+        acted = true
+      }
     }
     if (acted) {
+      if (Math.random() < 0.01) {
+        world.mobs :+= Vec2(Math.random() * ctx.canvas.width - ctx.canvas.width / 2, Math.random() * ctx.canvas.height - ctx.canvas.height / 2)
+      }
       for ((mob, i) <- world.mobs.zipWithIndex) {
-        val delta = (mob -> world.player).normed * 0.8
+        val nearby = world.mobs.zipWithIndex.filter(_._2 != i).map(_._1)
+        def f(separation: Double) = Math.log(separation / 40) / separation
+        val nbForce = nearby.map(mob -> _).map(v => v.normed * f(v.length)).reduceOption(_ + _).getOrElse(Vec2(0,0))
+        val playerForce = (mob -> world.player).normed * 1
+        //val delta = (mob -> world.player).normed * 0.8
+        val delta = (nbForce + playerForce).normed * 0.8
         world.mobs(i) += delta
       }
     }
   }
 
   def draw(): Unit = {
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-    ctx.save {
-      ctx.transform(viewMat.a, viewMat.b, viewMat.d, viewMat.e, viewMat.c, viewMat.f)
+    ctx.clear()
+    ctx.push(viewMat) {
       ctx.fillStyle = "blue"
-      ctx.beginPath()
-      ctx.arc(world.player.x, world.player.y, 4, 0, 2 * Math.PI)
-      ctx.fill()
-      ctx.strokeStyle = "blue"
-      ctx.beginPath()
-      ctx.arc(world.player.x, world.player.y, 12, 0, 2 * Math.PI)
-      ctx.stroke()
+      ctx.fillPath { ctx.circle(world.player, 4) }
       if ((world.player -> mouseWorldPos).length >= 4) {
+        ctx.strokeStyle = "blue"
+        ctx.strokePath { ctx.circle(world.player, 12) }
         val pointer = world.player + (world.player -> mouseWorldPos).normed * 12
-        ctx.beginPath()
-        ctx.arc(pointer.x, pointer.y, 2, 0, 2 * Math.PI)
-        ctx.fill()
+        ctx.fillPath { ctx.circle(pointer, 2) }
+      }
+      ctx.strokeStyle = "grey"
+      ctx.lineWidth = 3
+      if (attacking) {
+        ctx.strokePath {
+          ctx.moveTo(sword.a)
+          ctx.lineTo(sword.b)
+        }
+      } else {
+        ctx.strokePath {
+          val base = world.player + (world.player -> mouseWorldPos).normed.perp * 3
+          val tip = base + (world.player -> mouseWorldPos).normed * 4
+          ctx.moveTo(base)
+          ctx.lineTo(tip)
+        }
       }
 
       ctx.fillStyle = "orange"
       for (mob <- world.mobs) {
-        ctx.beginPath()
-        ctx.arc(mob.x, mob.y, 4, 0, 2 * Math.PI)
-        ctx.fill()
+        ctx.fillPath { ctx.circle(mob, 4) }
       }
     }
   }
