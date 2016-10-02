@@ -2,6 +2,9 @@ Things GameKit should have, in rough order of priority:
 
 - scene graph / renderer
   - and interactivity for same
+- render loop
+- vector library
+- keycode mapping
 - sprite sheets
 - hex grid
 - isometric grid

@@ -1,97 +1,119 @@
 package game
 
-import kit._
-import monix.execution.Ack
-import monix.reactive.Observable
-import monix.reactive.subjects.{BehaviorSubject, PublishSubject}
-import org.scalajs.dom.html
-import scala.concurrent.Future
+import kit.{Mat33, Vec2}
+import org.scalajs.dom
+import org.scalajs.dom.ext.KeyCode
+import org.scalajs.dom.{FocusEvent, KeyboardEvent, MouseEvent, html}
+import scala.collection.mutable
+import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExport
+import kit.CanvasHelpers._
 
 
-trait Circuit {
-  type State
-  type Msg
-
-  type View = Shaper[Msg] => Unit
-
-  def initialState: State
-  def update(state: State, msg: Msg): State
-  def view(state: State): View
-
-  val msgs = PublishSubject[Msg]()
-  lazy val states: Observable[State] = initialState +: msgs.scan(initialState)(update)
-
-  private val redraws = BehaviorSubject[Unit](())
-  def redraw(): Future[Ack] = redraws onNext ()
-  lazy val render: Observable[View] = (states combineLatestWith redraws) { (w, _) => w } map view
-}
-
-object Circuit {
-  def run(circuit: Circuit, canvas: kit.Canvas): Unit = {
-    import monix.execution.Scheduler.Implicits.global
-    canvas.resizes.subscribe { _ => circuit.redraw() }
-    circuit.render.subscribe { view =>
-      canvas.ctx.clearRect(0, 0, canvas.width, canvas.height)
-      view(new RenderShaper(canvas.ctx))
-      Ack.Continue
-    }
-    Mouse.shapeHovers(canvas.ctx, circuit.render).subscribe { msg => circuit.msgs onNext msg }
-    Mouse.shapeClicks(canvas.ctx, circuit.render).subscribe { msg => circuit.msgs onNext msg }
-  }
+class World {
+  var player = Vec2(0, 0)
+  val mobs = mutable.Seq(Vec2(100, 100), Vec2(100, 300))
 }
 
 @JSExport
-object Main extends Circuit {
-  case class State(
-    playerLocation: (Double, Double),
-    hovered: Option[String]
-  )
+object Main {
+  val world = new World
+  var ctx: dom.CanvasRenderingContext2D = _
+  val keysDown = mutable.Set[Int]()
+  var mousePos: Vec2 = Vec2(0, 0)
+  def mouseWorldPos: Vec2 = viewMat.inverse * mousePos
+  var mouseDown: Boolean = false
+  var viewMat: Mat33 = _
 
-  sealed trait Msg
-  case class MovePlayer(dx: Double, dy: Double) extends Msg
-  case class Hovered(id: Option[String]) extends Msg
-
-  val initialState = State((0, 0), None)
-
-  def update(world: State, msg: Msg): State = msg match {
-    case MovePlayer(dx, dy) =>
-      world.copy(playerLocation = (world.playerLocation._1 + dx, world.playerLocation._2 + dy))
-    case Hovered(id) => world.copy(hovered = id)
+  def update(): Unit = {
+    var acted = false
+    if (keysDown contains KeyCode.Right) {
+      world.player += Vec2(1, 0)
+      acted = true
+    }
+    if (keysDown contains KeyCode.Left) {
+      world.player -= Vec2(1, 0)
+      acted = true
+    }
+    if (keysDown contains KeyCode.Up) {
+      world.player -= Vec2(0, 1)
+      acted = true
+    }
+    if (keysDown contains KeyCode.Down) {
+      world.player += Vec2(0, 1)
+      acted = true
+    }
+    if (mouseDown) {
+      if ((world.player -> mouseWorldPos).length >= 4) {
+        world.player += (world.player -> mouseWorldPos).normed * (if (keysDown.contains(KeyCode.Shift)) 3 else 1)
+      }
+      acted = true
+    }
+    if (acted) {
+      for ((mob, i) <- world.mobs.zipWithIndex) {
+        val delta = (mob -> world.player).normed * 0.8
+        world.mobs(i) += delta
+      }
+    }
   }
 
-  def view(world: State): View = { (ctx: Shaper[Msg]) =>
-    ctx.shape(
-      ShapeProps(
-        id = "player",
-        fill = if (world.hovered.contains("player")) "red" else "blue",
-        onMouseDown = { () => MovePlayer(0, 10) },
-        onMouseOver = { () => Hovered(Some("player")) },
-        onMouseOut = { () => Hovered(None) }
-      )
-    ) {
-      _.rect(10 + world.playerLocation._1, 10 + world.playerLocation._2, 10, 10)
-    }
+  def draw(): Unit = {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+    ctx.save {
+      ctx.transform(viewMat.a, viewMat.b, viewMat.d, viewMat.e, viewMat.c, viewMat.f)
+      ctx.fillStyle = "blue"
+      ctx.beginPath()
+      ctx.arc(world.player.x, world.player.y, 4, 0, 2 * Math.PI)
+      ctx.fill()
+      ctx.strokeStyle = "blue"
+      ctx.beginPath()
+      ctx.arc(world.player.x, world.player.y, 12, 0, 2 * Math.PI)
+      ctx.stroke()
+      if ((world.player -> mouseWorldPos).length >= 4) {
+        val pointer = world.player + (world.player -> mouseWorldPos).normed * 12
+        ctx.beginPath()
+        ctx.arc(pointer.x, pointer.y, 2, 0, 2 * Math.PI)
+        ctx.fill()
+      }
 
-    ctx.shape(
-      ShapeProps(
-        id = "house",
-        fill = "green",
-        onMouseDown = { () => MovePlayer(-world.playerLocation._1 + 10, -world.playerLocation._2 + 10) }
-      )
-    ) {
-      _.rect(100, 100, 30, 30)
+      ctx.fillStyle = "orange"
+      for (mob <- world.mobs) {
+        ctx.beginPath()
+        ctx.arc(mob.x, mob.y, 4, 0, 2 * Math.PI)
+        ctx.fill()
+      }
     }
+  }
+
+  def frame(t: Double): Unit = {
+    update()
+    draw()
+  }
+
+  def run(): Unit = {
+    def loop(t: Double): Unit = {
+      frame(t)
+      dom.window.requestAnimationFrame(loop _)
+    }
+    dom.window.requestAnimationFrame(loop _)
   }
 
   @JSExport
   def main(root: html.Div): Unit = {
-    import monix.execution.Scheduler.Implicits.global
     root.innerHTML = ""  // Otherwise workbench update doesn't work properly
-    val canvas = new kit.Canvas
-    root.appendChild(canvas.element)
-    Circuit.run(this, canvas)
-
-    Keyboard.downs.subscribe { kc => msgs onNext MovePlayer(1, 0) }
+    val element = dom.document.createElement("canvas").asInstanceOf[html.Canvas]
+    element.width = dom.window.innerWidth
+    element.height = dom.window.innerHeight
+    element.style.display = "block"
+    root.appendChild(element)
+    ctx = element.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+    viewMat = Mat33.translate(ctx.canvas.width / 2, ctx.canvas.height / 2)
+    dom.window.addEventListener("keydown", (e: KeyboardEvent) => { keysDown += e.keyCode })
+    dom.window.addEventListener("keyup", (e: KeyboardEvent) => { keysDown -= e.keyCode })
+    dom.window.addEventListener("blur", (e: FocusEvent) => { keysDown.clear(); mouseDown = false })
+    dom.window.addEventListener("mousemove", (e: MouseEvent) => { mousePos = Vec2(e.clientX, e.clientY) })
+    dom.window.addEventListener("mousedown", (e: MouseEvent) => { mousePos = Vec2(e.clientX, e.clientY); mouseDown = true })
+    dom.window.addEventListener("mouseup", (e: MouseEvent) => { mousePos = Vec2(e.clientX, e.clientY); mouseDown = false })
+    run()
   }
 }
