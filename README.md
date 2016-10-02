@@ -1,4 +1,4 @@
-=== Continuous Roguelike
+### Continuous Roguelike
 
 Most Roguelikes are discrete in both space (they're played on a grid) and time
 (they're turn-based). This is an experiment in building a _continuous_
