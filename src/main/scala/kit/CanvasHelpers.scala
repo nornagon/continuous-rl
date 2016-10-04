@@ -1,6 +1,7 @@
 package kit
 
 import org.scalajs.dom.CanvasRenderingContext2D
+import scala.scalajs.js
 
 
 object CanvasHelpers {
@@ -32,6 +33,11 @@ object CanvasHelpers {
       ctx.lineTo(v.x, v.y)
     }
 
+    def polyLine(ps: Seq[Vec2]): Unit = {
+      ctx.moveTo(ps.head)
+      for (p <- ps.tail) ctx.lineTo(p)
+    }
+
     def circle(c: Vec2, r: Double): Unit = {
       ctx.arc(c.x, c.y, r, 0, Math.PI * 2)
     }
@@ -40,6 +46,12 @@ object CanvasHelpers {
       ctx.beginPath()
       p
       ctx.fill()
+    }
+
+    def fillPathEvenOdd(p: => Unit) = {
+      ctx.beginPath()
+      p
+      ctx.asInstanceOf[js.Dynamic].fill("evenodd")
     }
 
     def strokePath(p: => Unit) = {

@@ -18,6 +18,10 @@ case class Vec2(x: Double, y: Double) {
   def toAngle = Math.atan2(y, x)
 
   def perp = Vec2(-y, x)
+
+  def lerp(other: Vec2, t: Double): Vec2 = this * (1 - t) + other * t
+
+  override def toString: String = f"$productPrefix%s($x%.2f,$y%.2f)"
 }
 
 object Vec2 {

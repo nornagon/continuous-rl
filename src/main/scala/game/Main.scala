@@ -1,6 +1,6 @@
 package game
 
-import kit.{Circle2, Mat33, Segment2, Vec2}
+import kit._
 import org.scalajs.dom
 import org.scalajs.dom.ext.KeyCode
 import org.scalajs.dom._
@@ -188,9 +188,53 @@ object Main {
 
       for ((tree, angle) <- world.trees) {
         ctx.save {
+          ctx.translate(tree.x, tree.y)
           ctx.rotate(angle)
-          ctx.drawImage(Assets.tree, 0, 0, Assets.tree.width, Assets.tree.height, tree.x - Assets.tree.width / 2, tree.y - Assets.tree.height / 2, Assets.tree.width, Assets.tree.height)
+          ctx.drawImage(Assets.tree, 0, 0, Assets.tree.width, Assets.tree.height, -Assets.tree.width / 2, -Assets.tree.height / 2, Assets.tree.width, Assets.tree.height)
         }
+      }
+
+      val TAU = Math.PI * 2
+      val treePolys = for ((tree, a) <- world.trees) yield {
+        Seq(
+          tree + Vec2.forAngle(a) * 5,
+          tree + Vec2.forAngle(a + TAU / 3) * 5,
+          tree + Vec2.forAngle(a + 2 * TAU / 3) * 5,
+          tree + Vec2.forAngle(a) * 5
+        )
+      }
+      ctx.strokeStyle = "red"
+      ctx.lineWidth = 1
+      for (p <- treePolys) {
+        ctx.strokePath {
+          ctx.moveTo(p.head)
+          for (v <- p.drop(1)) ctx.lineTo(v)
+        }
+      }
+      val outer = Seq(Seq(
+        Vec2(-1000, -1000),
+        Vec2(1000, -1000),
+        Vec2(1000, 1000),
+        Vec2(-1000, 1000),
+        Vec2(-1000, -1000)
+      ).map(world.player + _))
+      val walls = outer ++ treePolys.filter(_.exists(t => (t -> world.player).length < 900))
+      val numShadowCasts = 1
+      if (numShadowCasts > 0) {
+        if (numShadowCasts > 1)
+          ctx.globalCompositeOperation = "multiply"
+        ctx.fillStyle = f"rgba(0, 0, 0, ${Math.pow(0.8, numShadowCasts)}%.2f)"
+        for (i <- 0 to numShadowCasts) {
+          val fov = FOV.calculateFOV(
+            world.player + Vec2.forAngle(i / numShadowCasts.toDouble * Math.PI * 2 + (world.player -> mouseWorldPos).toAngle) * 2,
+            walls
+          )
+          ctx.fillPathEvenOdd {
+            ctx.rect(world.player.x + -1000, world.player.y + -1000, 2000, 2000)
+            ctx.polyLine(fov)
+          }
+        }
+        ctx.globalCompositeOperation = "source-over"
       }
     }
     for (i <- 0 until world.ammo) {
