@@ -14,8 +14,11 @@ class World {
   var player = Vec2(0, 0)
   var ammo = 6
   var mobs = mutable.Seq(Vec2(100, 100), Vec2(100, 300))
-  var trees = mutable.Seq.fill(20)((Vec2(Math.random() * 1000 - 500, Math.random() * 1000 - 500), Math.random() * Math.PI / 2))
+  var trees = mutable.Seq.fill(20) {
+    (Vec2(Math.random() * 1000 - 500, Math.random() * 1000 - 500), Math.random() * Math.PI / 2)
+  }
   var splatters = mutable.Seq[(Vec2, Double)]()
+  var buildings: mutable.Buffer[Seq[Vec2]] = mutable.Buffer.empty
 }
 
 object Assets {
@@ -111,13 +114,17 @@ object Main {
       Some(ShootAction(Vec2.forAngle((world.player -> mouseWorldPos).toAngle + ((Math.random() * 2 - 1) * 0.1))))
     else if (codesDown contains "KeyR")
       Some(ReloadAction())
-    else if (mouseDown || (codesDown contains "KeyW"))
+    else if (codesDown contains "KeyW")
       Some(MoveAction((world.player -> mouseWorldPos).normed * (if (keysDown contains KeyCode.Shift) 3 else 1)))
+    else if (codesDown contains "KeyS")
+      Some(MoveAction(-(world.player -> mouseWorldPos).normed * 0.5))
     else
       None
   }
 
   var currentAction: Option[Action] = None
+  var buildMode = false
+  var buildPoints = Seq.empty[Vec2]
 
   def update(): Unit = {
     currentAction match {
@@ -126,6 +133,21 @@ object Main {
         currentAction foreach { newAction => newAction.init(world) }
       case Some(action) =>
         action.update(world)
+    }
+    if (codesDown contains "KeyB") {
+      buildMode = true
+      buildPoints = Seq.empty
+    }
+    if (codesDown contains "Escape") {
+      buildMode = false
+    }
+    if (buildMode) {
+      if (events exists (_.isInstanceOf[MouseDown]))
+        buildPoints :+= mouseWorldPos
+      if (buildPoints.size == 4) {
+        world.buildings.append(buildPoints :+ buildPoints.head)
+        buildMode = false
+      }
     }
     if (currentAction.isDefined) {
       if (Math.random() < 0.01) {
@@ -156,6 +178,9 @@ object Main {
     }
     viewMat = Mat33.translate(ctx.canvas.width / 2, ctx.canvas.height / 2) * Mat33.translate(-world.player.x, -world.player.y)
   }
+
+  val numShadowCasts = 1
+  val shadowcastColor = f"rgba(0, 0, 0, ${Math.pow(0.8, numShadowCasts)}%.2f)"
 
   def draw(): Unit = {
     ctx.fillStyle = "hsl(145, 63%, 42%)"
@@ -194,40 +219,21 @@ object Main {
         }
       }
 
-      val TAU = Math.PI * 2
-      val treePolys = for ((tree, a) <- world.trees) yield {
-        Seq(
-          tree + Vec2.forAngle(a) * 5,
-          tree + Vec2.forAngle(a + TAU / 3) * 5,
-          tree + Vec2.forAngle(a + 2 * TAU / 3) * 5,
-          tree + Vec2.forAngle(a) * 5
-        )
-      }
-      ctx.strokeStyle = "red"
-      ctx.lineWidth = 1
-      for (p <- treePolys) {
-        ctx.strokePath {
-          ctx.moveTo(p.head)
-          for (v <- p.drop(1)) ctx.lineTo(v)
-        }
-      }
-      val outer = Seq(Seq(
-        Vec2(-1000, -1000),
-        Vec2(1000, -1000),
-        Vec2(1000, 1000),
-        Vec2(-1000, 1000),
-        Vec2(-1000, -1000)
-      ).map(world.player + _))
-      val walls = outer ++ treePolys.filter(_.exists(t => (t -> world.player).length < 900))
-      val numShadowCasts = 1
+      for (b <- world.buildings)
+        ctx.strokePath("orange", lineWidth = 8) { ctx.polygon(b) }
+
+      val treePolys = for ((tree, a) <- world.trees) yield
+        Circle2(tree, 5).toPolygon(numPoints = 3, startAngle = a).toPolyLine
+      val walls = treePolys ++ world.buildings
       if (numShadowCasts > 0) {
         if (numShadowCasts > 1)
           ctx.globalCompositeOperation = "multiply"
-        ctx.fillStyle = f"rgba(0, 0, 0, ${Math.pow(0.8, numShadowCasts)}%.2f)"
-        for (i <- 0 to numShadowCasts) {
+        ctx.fillStyle = shadowcastColor
+        for (p <- Vec2.aroundCircle(numPoints = numShadowCasts, startAngle = (world.player -> mouseWorldPos).toAngle)) {
           val fov = FOV.calculateFOV(
-            world.player + Vec2.forAngle(i / numShadowCasts.toDouble * Math.PI * 2 + (world.player -> mouseWorldPos).toAngle) * 2,
-            walls
+            world.player + p * 2,
+            walls,
+            bounds = AABB(world.player - Vec2(1000, 1000), world.player + Vec2(1000, 1000))
           )
           ctx.fillPathEvenOdd {
             ctx.rect(world.player.x + -1000, world.player.y + -1000, 2000, 2000)
@@ -236,6 +242,20 @@ object Main {
         }
         ctx.globalCompositeOperation = "source-over"
       }
+      if (buildMode) {
+        ctx.strokePath("aquamarine") { ctx.polygon(buildPoints :+ mouseWorldPos) }
+        ctx.fillPath("aquamarine") { ctx.circle(mouseWorldPos, 5) }
+        ctx.strokePath("aquamarine") { ctx.circle(mouseWorldPos, 10) }
+      }
+      /*
+      val grad = ctx.createRadialGradient(world.player.x, world.player.y, 10, world.player.x, world.player.y, 250)
+      //grad.addColorStop(0, "hsla(0,0%,100%,0)")
+      //grad.addColorStop(1, "hsla(42,75%,74%,0.2)")
+      grad.addColorStop(0, "hsla(0,0%,0%,0.5)")
+      grad.addColorStop(1, "hsla(0,0%,0%,1.0)")
+      ctx.fillStyle = grad
+      ctx.fillRect(world.player.x - 1000, world.player.y - 1000, 2000, 2000)
+      */
     }
     for (i <- 0 until world.ammo) {
       ctx.drawImage(Assets.square, 0, 0, Assets.square.width, Assets.square.height,
@@ -247,9 +267,14 @@ object Main {
     }
   }
 
+  trait KEvent
+  case class MouseDown(p: Vec2) extends KEvent
+
+  val events = mutable.Buffer[KEvent]()
   def frame(t: Double): Unit = {
     update()
     draw()
+    events.clear()
   }
 
   def run(): Unit = {
@@ -267,7 +292,6 @@ object Main {
     element.width = dom.window.innerWidth
     element.height = dom.window.innerHeight
     element.style.display = "block"
-    //element.style.cursor = "none"
     root.appendChild(element)
     ctx = element.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
     viewMat = Mat33.translate(ctx.canvas.width / 2, ctx.canvas.height / 2)
@@ -281,7 +305,7 @@ object Main {
     })
     dom.window.addEventListener("blur", (e: FocusEvent) => { keysDown.clear(); codesDown.clear(); mouseDown = false })
     dom.window.addEventListener("mousemove", (e: MouseEvent) => { mousePos = Vec2(e.clientX, e.clientY) })
-    dom.window.addEventListener("mousedown", (e: MouseEvent) => { mousePos = Vec2(e.clientX, e.clientY); mouseDown = true })
+    dom.window.addEventListener("mousedown", (e: MouseEvent) => { mousePos = Vec2(e.clientX, e.clientY); mouseDown = true; events.append(MouseDown(mousePos)) })
     dom.window.addEventListener("mouseup", (e: MouseEvent) => { mousePos = Vec2(e.clientX, e.clientY); mouseDown = false })
     run()
   }

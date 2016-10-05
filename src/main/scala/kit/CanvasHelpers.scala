@@ -38,26 +38,40 @@ object CanvasHelpers {
       for (p <- ps.tail) ctx.lineTo(p)
     }
 
+    def polygon(ps: Seq[Vec2]): Unit = {
+      polyLine(ps)
+      ctx.closePath()
+    }
+
     def circle(c: Vec2, r: Double): Unit = {
       ctx.arc(c.x, c.y, r, 0, Math.PI * 2)
     }
 
-    def fillPath(p: => Unit) = {
+    def fillPath(p: => Unit): Unit = {
       ctx.beginPath()
       p
       ctx.fill()
     }
+    def fillPath(style: String)(p: => Unit): Unit = {
+      ctx.fillStyle = style
+      fillPath(p)
+    }
 
-    def fillPathEvenOdd(p: => Unit) = {
+    def fillPathEvenOdd(p: => Unit): Unit = {
       ctx.beginPath()
       p
       ctx.asInstanceOf[js.Dynamic].fill("evenodd")
     }
 
-    def strokePath(p: => Unit) = {
+    def strokePath(p: => Unit): Unit = {
       ctx.beginPath()
       p
       ctx.stroke()
+    }
+    def strokePath(style: String, lineWidth: Double = 1)(p: => Unit): Unit = {
+      ctx.strokeStyle = style
+      ctx.lineWidth = lineWidth
+      strokePath(p)
     }
 
     def clear() = ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)

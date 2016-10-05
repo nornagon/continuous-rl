@@ -2,7 +2,6 @@ package kit
 
 import scala.collection.mutable
 
-
 object FOV {
   case class Endpoint(p: Vec2, angle: Double, segment: Segment2, isBegin: Boolean)
 
@@ -19,8 +18,6 @@ object FOV {
     * See http://www.redblobgames.com/articles/visibility/segment-sorting.html
     */
   def segmentInFrontOf(a: Segment2, b: Segment2, relativeTo: Vec2): Boolean = {
-    if (a == b) return false  // Must be a pure 'less-than' operation to work with SortedSet.
-    if (a.a.x < b.a.x) return !segmentInFrontOf(b, a, relativeTo)  // Impose anti-symmetry for SortedSet reasons.
     val A1 = isLeftOf(a, b.a.lerp(b.b, 0.01))
     val A2 = isLeftOf(a, b.b.lerp(b.a, 0.01))
     val A3 = isLeftOf(a, relativeTo)
@@ -51,34 +48,47 @@ object FOV {
     )
   }
 
-  def calculateFOV(source: Vec2, polygons: Seq[Seq[Vec2]]): Seq[Vec2] = {
-    val endpoints = polygons.flatMap { points =>
+  def calculateFOV(source: Vec2, polygons: Seq[Seq[Vec2]], bounds: AABB): Seq[Vec2] = {
+    val edges = bounds.toPolygon.toPolyLine
+    val endpoints = (polygons :+ edges).flatMap { points =>
       points.sliding(2).flatMap {
         case Seq(a, b) =>
-          val aAngle = (source -> a).toAngle
-          val bAngle = (source -> b).toAngle
-          var dAngle = bAngle - aAngle
-          if (dAngle <= -Math.PI) dAngle += 2 * Math.PI
-          if (dAngle > Math.PI) dAngle -= 2 * Math.PI
-          val segment = Segment2(a, b)
-          Seq(
-            Endpoint(a, aAngle, segment, dAngle > 0),
-            Endpoint(b, bAngle, segment, dAngle <= 0)
-          )
+          bounds.truncate(Segment2(a, b)) match {
+            case None =>
+              Seq.empty
+            case Some(segment) =>
+              val aAngle = (source -> a).toAngle
+              val bAngle = (source -> b).toAngle
+              var dAngle = bAngle - aAngle
+              if (dAngle <= -Math.PI) dAngle += 2 * Math.PI
+              if (dAngle > Math.PI) dAngle -= 2 * Math.PI
+              Seq(
+                Endpoint(a, aAngle, segment, dAngle > 0),
+                Endpoint(b, bAngle, segment, dAngle <= 0)
+              )
+          }
       }
     }.sortWith((a, b) => a.angle < b.angle || (a.angle == b.angle && a.isBegin && !b.isBegin))
 
-    val closerFirst = Ordering.fromLessThan[Segment2](segmentInFrontOf(_, _, source)).reverse
-    val openSegments = mutable.SortedSet[Segment2]()(closerFirst)
+    // TODO: This data structure could definitely be more efficient. SortedSet doesn't work unfortunately because
+    // segmentInFrontOf is not a total ordering.
+    var openSegments = List.empty[Segment2]
+    def addSeg(seg: Segment2): Unit = {
+      val (closer, further) = openSegments.span(s => segmentInFrontOf(seg, s, source))
+      openSegments = closer ++ (seg :: further)
+    }
+    def delSeg(seg: Segment2): Unit = {
+      val (before, after) = openSegments.span(_ ne seg)
+      openSegments = before ++ after.drop(1)
+    }
     var beginAngle: Double = 0
     // The first pass is just to set up `beginAngle` and `openSegments` correctly. TODO: do this more efficiently.
     for (endpoint <- endpoints) {
       val previouslyClosestSegment = openSegments.headOption
-      if (endpoint.isBegin) {
-        openSegments.add(endpoint.segment)
-      } else {
-        openSegments.remove(endpoint.segment)
-      }
+      if (endpoint.isBegin)
+        addSeg(endpoint.segment)
+      else
+        delSeg(endpoint.segment)
       if (previouslyClosestSegment != openSegments.headOption)
         beginAngle = endpoint.angle
     }
@@ -86,9 +96,9 @@ object FOV {
     for (endpoint <- endpoints) {
       val previouslyClosestSegment = openSegments.headOption
       if (endpoint.isBegin)
-        openSegments.add(endpoint.segment)
+        addSeg(endpoint.segment)
       else
-        openSegments.remove(endpoint.segment)
+        delSeg(endpoint.segment)
       if (previouslyClosestSegment != openSegments.headOption) {
         output.append(getTrianglePoints(source, beginAngle, endpoint.angle, previouslyClosestSegment))
         beginAngle = endpoint.angle
