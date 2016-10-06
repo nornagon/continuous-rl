@@ -12,9 +12,7 @@ import kit.cp.Implicits._
 import js.JSConverters._
 
 class World {
-  //var player = Vec2(0, 0)
   var ammo = 6
-  //var mobs = mutable.Seq(Vec2(100, 100), Vec2(100, 300))
   val mobs = mutable.Buffer.empty[cp.Body]
   var trees = mutable.Seq.fill(20) {
     (Vec2(Math.random() * 1000 - 500, Math.random() * 1000 - 500), Math.random() * Math.PI / 2)
@@ -109,6 +107,7 @@ object Main {
     val range = 600
     var t: Double = 0
     var base: Vec2 = _
+    var hitSomething = false
 
     def bullet: Segment2 = {
       val perFrame = range / attackLength.toDouble
@@ -120,11 +119,17 @@ object Main {
       world.ammo -= 1
     }
     override def update(world: World): Unit = {
-      val deadMobs = world.mobs.filter { mob => bullet intersects Circle2(mob.getPos(), 10) }
-      world.splatters ++= deadMobs.map(mob => (mob.getPos(): Vec2, Math.random() * Math.PI * 2))
-      for (mob <- deadMobs)
-        world.removeMob(mob)
-      //world.mobs = world.mobs.filterNot { mob => bullet intersects Circle2(mob.getPos(), 10) }
+      if (!hitSomething) {
+        val hit = world.space.segmentQueryFirst(bullet.a, bullet.b, 1, 0)
+        if (hit != null) {
+          val target = hit.shape.getBody()
+          if (world.mobs contains target) {
+            world.splatters :+= ((target.getPos(): Vec2, Math.random() * Math.PI * 2))
+            world.removeMob(target)
+            hitSomething = true
+          }
+        }
+      }
       t += 1
     }
     def done(world: World): Boolean = {
@@ -132,6 +137,7 @@ object Main {
     }
 
     override def draw(ctx: CanvasRenderingContext2D, world: World): Unit = {
+      if (hitSomething) return
       ctx.strokeStyle = "lightgray"
       ctx.lineWidth = 3
       ctx.strokePath {
@@ -157,16 +163,15 @@ object Main {
 
   case class MoveAction(dir: Vec2) extends Action {
     override def init(world: World): Unit = {
-      //world.player += dir
       val vel: Vec2 = world.playerBody.getVel()
       val slow = if (vel.length > 0.1) {
         val sint = (vel cross dir) / (vel.length * dir.length)
         -vel * sint.abs * 0.5
       } else Vec2(0, 0)
       val imp = Vec2.forAngle((dir + slow).toAngle) * dir.length
-      /*debugVectors += ((Segment2(world.playerBody.getPos(), world.playerBody.getPos() + imp * 5), "red"))
+      debugVectors += ((Segment2(world.playerBody.getPos(), world.playerBody.getPos() + imp * 5), "red"))
       debugVectors += ((Segment2(world.playerBody.getPos(), world.playerBody.getPos() + dir * 5), "green"))
-      debugVectors += ((Segment2(world.playerBody.getPos(), world.playerBody.getPos() + slow * 5), "orange"))*/
+      debugVectors += ((Segment2(world.playerBody.getPos(), world.playerBody.getPos() + slow * 5), "orange"))
       world.playerBody.applyImpulse(imp, Vec2(0, 0))
     }
     def done(world: World): Boolean = true
@@ -330,8 +335,10 @@ object Main {
         ctx.fillPath("aquamarine") { ctx.circle(mouseWorldPos, 5) }
         ctx.strokePath("aquamarine") { ctx.circle(mouseWorldPos, 10) }
       }
-      for ((s, c) <- debugVectors) {
-        ctx.strokePath(c) { ctx.polyLine(Seq(s.a, s.b)) }
+      if (false) {
+        for ((s, c) <- debugVectors) {
+          ctx.strokePath(c) { ctx.polyLine(Seq(s.a, s.b)) }
+        }
       }
     }
     for (i <- 0 until world.ammo) {

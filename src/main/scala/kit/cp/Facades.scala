@@ -68,7 +68,7 @@ object BoxShape extends js.Object{
 @native
 class Body(val m: Double, val i: Double) extends js.Object {
   var a: Double = native
-  var f:  Vect= native
+  var f: Vect = native
   var t: Double = native
   var w: Double = native
   var shapeList: js.Array[Shape] = native
@@ -142,10 +142,10 @@ class Space() extends js.Object{
   def containsConstraint(constaint: js.Any): Boolean = native
   def step(dt: Double): Unit = native
 
-  def pointQuery(point: Vect, layers: Double, group: Double, func: js.Function1[Shape, Unit]): Unit = native
-  def pointQueryFirst(point: Vect, layers: Double, group: Double): Shape = native
-  def segmentQuery(start: Vect, end: Vect, layers: Double, group: Double, func: js.Function3[Shape, Double, Vect, Unit]): Unit = native
-  def segmentQueryFirst(start: Vect, end: Vect, layers: Double, group: Double): SegmentQueryInfo = native
+  def pointQuery(point: Vect, layers: Int, group: Int, func: js.Function1[Shape, Unit]): Unit = native
+  def pointQueryFirst(point: Vect, layers: Int, group: Int): Shape = native
+  def segmentQuery(start: Vect, end: Vect, layers: Int, group: Int, func: js.Function3[Shape, Double, Vect, Unit]): Unit = native
+  def segmentQueryFirst(start: Vect, end: Vect, layers: Int, group: Int): SegmentQueryInfo = native
   def shapeQuery(shape: Shape, func: js.Function2[Shape, js.Any, Unit]): Unit = native
   var damping: Double = native
   var gravity: Vect = native
