@@ -202,6 +202,15 @@ case class Polygon(points: Seq[Vec2]) {
   def toPolyLine: Seq[Vec2] = points :+ points.head
 
   def translate(offset: Vec2): Polygon = Polygon(points map (_ + offset))
+
+  // TODO: this might actually be isCW?
+  def isCCW: Boolean = (points ++ points.takeRight(2)).sliding(3).forall {
+    case Seq(a, b, c) =>
+      ((a -> b) cross (b -> c)) <= 0
+    case _ => true
+  }
+
+  def toCCWPolyLine = if (isCCW) toPolyLine else toPolyLine.reverse
 }
 
 /** Axis-aligned bounding box.
