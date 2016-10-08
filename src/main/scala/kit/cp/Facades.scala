@@ -121,13 +121,14 @@ class Arbiter extends js.Object{
 @JSName("cp.Space")
 @native
 class Space() extends js.Object{
+  type CollisionHandler = js.Function2[Arbiter, Space, Unit]
   def getCurrentTimeStep(): Double = native
   def setIterations(iter: Double): Unit = native
   def isLocked(): Boolean = native
-  def addCollisionHandler(a: js.Any, b: js.Any, preSolve: js.Function2[Arbiter, Space, Unit], postSolve: js.Function2[Arbiter, Space, Unit], separate: js.Function2[Arbiter, Space, Unit]): Unit = native
-  def removeCollisionHandler(a: js.Any, b: js.Any): Unit = native
-  def setDefaultCollisionHandler(preSolve: js.Any, postSolve: js.Any, separate: js.Any): Unit = native
-  def lookupHandler(a: js.Any, b: js.Any): Double = native
+  def addCollisionHandler(a: Int, b: Int, preSolve: CollisionHandler, postSolve: CollisionHandler, separate: CollisionHandler): Unit = native
+  def removeCollisionHandler(a: Int, b: Int): Unit = native
+  def setDefaultCollisionHandler(preSolve: CollisionHandler, postSolve: CollisionHandler, separate: CollisionHandler): Unit = native
+  def lookupHandler(a: Int, b: Int): Double = native
   def addShape(shape: Shape): Shape = native
   def addStaticShape(shape: Shape): Shape = native
   def addBody(body: Body): Body = native

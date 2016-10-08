@@ -23,6 +23,8 @@ case class Vec2(x: Double, y: Double) {
 
   def lerp(other: Vec2, t: Double): Vec2 = this * (1 - t) + other * t
 
+  def rotate(angle: Double): Vec2 = Mat33.rotate(angle) * this
+
   override def toString: String = f"$productPrefix%s($x%.2f,$y%.2f)"
 }
 
@@ -126,6 +128,7 @@ object Mat33 {
     0, 1, ty,
     0, 0, 1
   )
+  def translate(v: Vec2): Mat33 = translate(v.x, v.y)
   def rotate(theta: Double): Mat33 = {
     val c = Math.cos(theta)
     val s = Math.sin(theta)
@@ -198,10 +201,11 @@ case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
 
 
 /** Closed polygon. */
-case class Polygon(points: Seq[Vec2]) {
+case class Polygon(points: Seq[Vec2]) extends Shape2 {
   def toPolyLine: Seq[Vec2] = points :+ points.head
 
   def translate(offset: Vec2): Polygon = Polygon(points map (_ + offset))
+  def rotateAroundOrigin(angle: Double): Polygon = Polygon(points map (_.rotate(angle)))
 
   // TODO: this might actually be isCW?
   def isCCW: Boolean = (points ++ points.takeRight(2)).sliding(3).forall {
@@ -211,6 +215,8 @@ case class Polygon(points: Seq[Vec2]) {
   }
 
   def toCCWPolyLine = if (isCCW) toPolyLine else toPolyLine.reverse
+
+  override def intersects(other: Shape2): Boolean = ???
 }
 
 /** Axis-aligned bounding box.
