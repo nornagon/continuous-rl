@@ -17,7 +17,7 @@ class World {
   val staticEntities = mutable.Buffer.empty[StaticEntity]
   val space = new cp.Space
   space.damping = 0.5
-  space.setDefaultCollisionHandler(null, handleCollision _, null)
+  space.setDefaultCollisionHandler(null, null, handleCollision _, null)
   var gameOver = false
 
   addEntity(player, Vec2(0, 0))

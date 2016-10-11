@@ -137,7 +137,7 @@ class Space() extends js.Object{
   def isLocked(): Boolean = native
   def addCollisionHandler(a: Int, b: Int, preSolve: CollisionHandler, postSolve: CollisionHandler, separate: CollisionHandler): Unit = native
   def removeCollisionHandler(a: Int, b: Int): Unit = native
-  def setDefaultCollisionHandler(preSolve: CollisionHandler, postSolve: CollisionHandler, separate: CollisionHandler): Unit = native
+  def setDefaultCollisionHandler(begin: CollisionHandler, preSolve: CollisionHandler, postSolve: CollisionHandler, separate: CollisionHandler): Unit = native
   def lookupHandler(a: Int, b: Int): Double = native
   def addShape(shape: Shape): Shape = native
   def addStaticShape(shape: Shape): Shape = native
