@@ -1,6 +1,6 @@
 package game
 
-import game.entities.ZombieSpawner
+import game.entities.{Building, Road, ZombieSpawner}
 import kit._
 import org.scalajs.dom
 import org.scalajs.dom._
@@ -21,6 +21,27 @@ object Main {
     }
     world.screenSize = Vec2(ctx.canvas.width, ctx.canvas.height)
     world.addEntity(new ZombieSpawner, Vec2(0, 0))
+    val s = new kit.pcg.Substrate(Set((Vec2(0, 0), 0.0)))
+    while (s.deadSegments.size < 200) {
+      s.step()
+      if (s.liveSegments.isEmpty)
+        s.liveSegments.append(s.makeNewSegment())
+    }
+    val roads = s.deadSegments.map { s => Segment2(s.a * 100, s.b * 100) }
+    for (seg <- roads) {
+      world.addEntity(new Road(seg), Vec2(0, 0))
+    }
+    for (_ <- 1 to roads.size * 4) {
+      val seg = Rand.oneOf(roads: _*)
+      val t = Rand.between(0, seg.length / 500).floor * 500
+      val pointOnRoad = seg.a + (seg.a -> seg.b).normed * t
+      val pointNearRoad = pointOnRoad + (seg.a -> seg.b).perp.normed * Rand.oneOf(-1, 1) * 500
+      val poly = Polygon.square(800).rotateAroundOrigin(-(seg.a -> seg.b).toAngle).translate(pointNearRoad)
+      if (!roads.exists(poly intersects _)) {
+        val smallerPoly = Polygon.square(600).rotateAroundOrigin(-(seg.a -> seg.b).toAngle)
+        world.addEntity(new Building(smallerPoly), pointNearRoad)
+      }
+    }
     world
   }
   var world: World = _

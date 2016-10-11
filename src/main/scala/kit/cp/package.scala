@@ -15,5 +15,7 @@ package object cp {
     def momentForCircle(m: Double, r1: Double, r2: Double, offset: Vect): Double = native
     def centroidForPoly(verts: js.Array[Double]): Vect = native
     def recenterPoly(verts: js.Array[Double]): Unit = native
+
+    val ALL_LAYERS: Int = native
   }
 }

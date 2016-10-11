@@ -6,5 +6,7 @@ import kit.Polygon
 
 class Building(outline: Polygon) extends StaticEntity {
   def shape = Seq(outline)
+
+  override def castsShadow: Boolean = true
 }
 

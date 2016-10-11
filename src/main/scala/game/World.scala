@@ -39,7 +39,8 @@ class World {
     if (currentAction.isDefined) return
     currentAction =
       if (codesDown contains "KeyW") {
-        Some(MoveAction((player.pos -> mousePos).normed * 300))
+        val speed = if (codesDown contains "ShiftLeft") 600 else 300
+        Some(MoveAction((player.pos -> mousePos).normed * speed))
       } else if (codesDown contains "KeyS") {
         Some(MoveAction((player.pos -> mousePos).normed * -100))
       } else if (codesDown contains "KeyR") {
@@ -84,36 +85,43 @@ class World {
     }
   }
 
-  val shadowcastColor = "rgba(0, 0, 0, 1.0)"
+  def entitiesWithin(aabb: AABB): Seq[Entity] = {
+    val shapes = mutable.Buffer[cp.Shape]()
+
+    // Query the BBTrees directly instead of through bbQuery so we can ignore layers/groups, otherwise roads don't get drawn
+    // TODO: use a separate (non-cpSpace) BBTree for tracking non-colliding static shapes?
+    space.staticShapes.query(aabb, (s: cp.Shape) => {
+      if (aabb.intersects(s.getBB()))
+        shapes.append(s)
+    })
+    space.activeShapes.query(aabb, (s: cp.Shape) => {
+      if (aabb.intersects(s.getBB()))
+        shapes.append(s)
+    })
+
+    val entities = shapes.map(s => entityForBody(s.getBody()))
+
+    // Add shapeless entities (e.g. bullets, splatters) according to their body locations
+    // TODO: represent these in a BBTree somehow?
+    for (e <- staticEntities ++ dynamicEntities; if e.body.shapeList.length == 0; if aabb.contains(e.pos))
+      entities.append(e)
+
+    entities
+  }
+
   def draw(ctx: CanvasRenderingContext2D): Unit = {
-    val allEntities = staticEntities ++ dynamicEntities
-    val shadowcastingEntities = allEntities filter (_.castsShadow)
+    val viewBounds = AABB(player.pos - Vec2(1000, 1000), player.pos + Vec2(1000, 1000))
+
+    val visibleEntities = this.entitiesWithin(viewBounds)
+
     ctx.fillStyle = "hsl(145, 63%, 42%)"
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
     ctx.push(viewMatrix) {
-      val entitiesByLayer = allEntities.groupBy(_.layer)
-      for {
-        layer <- entitiesByLayer.keys.toSeq.sorted
-        entity <- entitiesByLayer(layer)
-      } {
+      val entitiesByLayer = visibleEntities.groupBy(_.layer)
+      for (layer <- entitiesByLayer.keys.toSeq.sorted; entity <- entitiesByLayer(layer))
         entity.draw(ctx)
-      }
-      if (true) drawVignette(ctx)
-      ctx.fillStyle = shadowcastColor
-      val fov = FOV.calculateFOV(
-        player.pos,
-        shadowcastingEntities flatMap { e =>
-          e.shape.map {
-            case p: Polygon =>
-              p.rotateAroundOrigin(e.body.a).translate(e.pos).toPolyLine
-          }
-        },
-        bounds = AABB(player.pos - Vec2(1000, 1000), player.pos + Vec2(1000, 1000))
-      )
-      ctx.fillPathEvenOdd {
-        ctx.rect(player.pos.x - 1000, player.pos.y - 1000, 2000, 2000)
-        ctx.polyLine(fov)
-      }
+      drawVignette(ctx)
+      drawFOV(ctx, viewBounds, visibleEntities)
     }
     for (i <- 0 until player.ammo) {
       ctx.drawImage(Assets.square, 0, 0, Assets.square.width, Assets.square.height,
@@ -122,6 +130,32 @@ class World {
         Assets.square.width,
         Assets.square.height
       )
+    }
+    ctx.save {
+      ctx.fillStyle = "thistle"
+      ctx.font = "10px Menlo, Consolas, monospace"
+      ctx.textBaseline = "top"
+      ctx.fillText(s"Drew ${visibleEntities.size} entities", 10, 10)
+    }
+  }
+
+  def drawFOV(ctx: CanvasRenderingContext2D, viewBounds: AABB, visibleEntities: Seq[Entity]): Unit = {
+    val shadowcastColor = "rgba(0, 0, 0, 1.0)"
+    val shadowcastingEntities = visibleEntities filter (_.castsShadow)
+    ctx.fillStyle = shadowcastColor
+    val fov = FOV.calculateFOV(
+      player.pos,
+      shadowcastingEntities flatMap { e =>
+        e.shape.map {
+          case p: Polygon =>
+            p.rotateAroundOrigin(e.body.a).translate(e.pos).toPolyLine
+        }
+      },
+      bounds = viewBounds
+    )
+    ctx.fillPathEvenOdd {
+      ctx.rect(player.pos.x - 1000, player.pos.y - 1000, 2000, 2000)
+      ctx.polyLine(fov)
     }
   }
 
@@ -158,8 +192,9 @@ class World {
         case p: Polygon =>
           new cp.PolyShape(e.body, p.toCCWPolyLine.flatMap(v => Seq(v.x, v.y)).toJSArray, Vec2(0, 0))
         case s: Segment2 =>
-          new cp.SegmentShape(e.body, s.a, s.b, 2.0 /* TODO */)
+          new cp.SegmentShape(e.body, s.a, s.b, r = 2.0 /* TODO */)
       }
+      shape.setLayers(e.layers)
       space.addShape(shape)
     }
     e.didMount(this)

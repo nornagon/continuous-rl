@@ -144,6 +144,7 @@ trait Shape2 {
   def intersects(other: Shape2): Boolean
 }
 
+/** A circle of radius `r` centered at `c`. */
 case class Circle2(c: Vec2, r: Double) extends Shape2 {
   override def intersects(other: Shape2): Boolean = other match {
     case other: Circle2 => (c - other.c).length <= r + other.r
@@ -154,6 +155,7 @@ case class Circle2(c: Vec2, r: Double) extends Shape2 {
     Polygon(Vec2.aroundCircle(numPoints, startAngle).map(_ * r)).translate(c)
 }
 
+/** A segment beginning at `a` and ending at `b`. */
 case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
   override def intersects(other: Shape2): Boolean = other match {
     case c: Circle2 =>
@@ -191,20 +193,26 @@ case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
     }
   }
 
+  /** The point on this segment closest to `p`. */
   def closestPointTo(p: Vec2): Vec2 = {
     val l2 = (a - b).lengthSquared
     if (l2 == 0) return a
     val t = Math.max(0, Math.min(1, ((p - a) dot (b - a)) / l2))
     a + (b - a) * t
   }
+
+  def length: Double = (a -> b).length
 }
 
 
 /** Closed polygon. */
 case class Polygon(points: Seq[Vec2]) extends Shape2 {
+  /** Sequence of points representing the vertices of this polygon, with the final point equal to the first. */
   def toPolyLine: Seq[Vec2] = points :+ points.head
 
+  /** Translate all the points in the polygon by `offset`. */
   def translate(offset: Vec2): Polygon = Polygon(points map (_ + offset))
+  /** Rotate all the points in the polygon about Vec2(0, 0). */
   def rotateAroundOrigin(angle: Double): Polygon = Polygon(points map (_.rotate(angle)))
 
   // TODO: this might actually be isCW?
@@ -216,12 +224,30 @@ case class Polygon(points: Seq[Vec2]) extends Shape2 {
 
   def toCCWPolyLine = if (isCCW) toPolyLine else toPolyLine.reverse
 
-  override def intersects(other: Shape2): Boolean = ???
+  /** A sequence of segments representing the edges of this polygon. */
+  def segments = toPolyLine.sliding(2) map { case Seq(a, b) => Segment2(a, b) }
+
+  override def intersects(other: Shape2): Boolean = other match {
+    case seg: Segment2 =>
+      segments.exists(_ intersects seg)
+  }
+}
+
+object Polygon {
+  /** A square of side length `side` centered at the origin. */
+  def square(side: Double): Polygon = {
+    Polygon(Seq(
+      Vec2(-side/2, -side/2),
+      Vec2(side/2, -side/2),
+      Vec2(side/2, side/2),
+      Vec2(-side/2, side/2)
+    ))
+  }
 }
 
 /** Axis-aligned bounding box.
   *
-  * `lower` must be less than `upper`.
+  * `lower` must be <= `upper` in both dimensions.
   */
 case class AABB(lower: Vec2, upper: Vec2) {
   require(lower.x <= upper.x && lower.y <= upper.y, s"Invalid AABB: $lower must be <= $upper")
@@ -250,6 +276,10 @@ case class AABB(lower: Vec2, upper: Vec2) {
       .orElse(seg.intersection(rightEdge))
       .orElse(seg.intersection(bottomEdge))
       .map(clip)
+  }
+
+  def intersects(other: AABB): Boolean = {
+    lower.x <= other.upper.x && other.lower.x <= upper.x && lower.y <= other.upper.y && other.lower.y <= upper.y
   }
 
   /** True if `point` is contained within the AABB.

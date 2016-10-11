@@ -13,6 +13,12 @@ class Vect(var x: Double, var y: Double) extends js.Object
 @native
 class BB(var l: Double, var b: Double, var r: Double, var t: Double) extends js.Object
 
+@JSName("cp.BBTree")
+@native
+class BBTree(staticIndex: js.Any) extends js.Object {
+  def query(bb: BB, func: js.Function1[Shape, Unit]): Unit = native
+}
+
 @JSName("cp.Shape")
 @native
 class Shape(body: Body) extends js.Object {
@@ -30,6 +36,10 @@ class Shape(body: Body) extends js.Object {
   def pointQuery(p: Vect): js.UndefOr[NearestPointQueryInfo] = native
   var layers: Int = native
   var group: Int = native
+  var bb_l: Double = native
+  var bb_b: Double = native
+  var bb_r: Double = native
+  var bb_t: Double = native
 }
 
 @JSName("cp.PointQueryExtendedInfo")
@@ -147,12 +157,16 @@ class Space() extends js.Object{
   def pointQueryFirst(point: Vect, layers: Int, group: Int): Shape = native
   def segmentQuery(start: Vect, end: Vect, layers: Int, group: Int, func: js.Function3[Shape, Double, Vect, Unit]): Unit = native
   def segmentQueryFirst(start: Vect, end: Vect, layers: Int, group: Int): SegmentQueryInfo = native
+  def bbQuery(bb: BB, layers: Int, group: Int, func: js.Function1[Shape, Unit]): Unit = native
   def shapeQuery(shape: Shape, func: js.Function2[Shape, js.Any, Unit]): Unit = native
   var damping: Double = native
   var gravity: Vect = native
   var staticBody: Body = native
   var bodies: js.Array[Body] = native
   var constraints: js.Array[Constraint] = native
+
+  val activeShapes: BBTree = native
+  val staticShapes: BBTree = native
 }
 
 @JSName("cp.Constraint")
