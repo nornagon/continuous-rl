@@ -30,7 +30,7 @@ trait Entity {
       shape foreach { s =>
         ctx.strokePath(debugColor, debugLineWidth) {
           s match {
-            case c: Circle2 => ctx.circle(c.c, c.r)
+            case c: Circle2 => ctx.moveTo(c.c); ctx.circle(c.c, c.r)
             case p: Polygon => ctx.polygon(p)
           }
         }

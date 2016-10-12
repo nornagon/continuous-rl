@@ -56,15 +56,33 @@ class Player extends DynamicEntity {
           Assets.gun.width * 0.5, Assets.gun.height * 0.5
         )
       }
-      /*ctx.strokePath("red", lineWidth = 2) {
-        ctx.moveTo(rightArmAttachPoint)
-        ctx.lineTo(rightArmAttachPoint + Vec2.forAngle(pointingAngle - body.a) * 10)
-      }*/
       ctx.drawImageCentered(Assets.blueMan, Vec2(0, 0), 0.5)
     }
-    /*ctx.strokePath("yellow") {
-      ctx.circle(rightHandPos, 2)
-    }*/
+    if (grabbing != null) {
+      ctx.strokePath("red", 2) {
+        ctx.moveTo(grabbing.a.getPos() + grabbing.anchr1.rotate(-grabbing.a.a))
+        ctx.lineTo(grabbing.b.getPos() + grabbing.anchr2.rotate(-grabbing.b.a))
+      }
+    }
+  }
+
+  var grabbing: cp.SlideJoint = _
+  def grab(world: World, other: cp.Body, at: Vec2): Unit = {
+    ungrab(world)
+    grabbing = new cp.SlideJoint(
+      body,
+      other,
+      rightArmAttachPoint,
+      at,
+      0,
+      10
+    )
+    world.space.addConstraint(grabbing)
+  }
+  def ungrab(world: World): Unit = {
+    if (grabbing != null)
+      world.space.removeConstraint(grabbing)
+    grabbing = null
   }
 }
 

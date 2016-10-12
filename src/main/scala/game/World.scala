@@ -1,6 +1,5 @@
 package game
 
-import game.actions.{MoveAction, PauseAction, ReloadAction}
 import game.entities.{Bullet, Player}
 import kit._
 import org.scalajs.dom.CanvasRenderingContext2D
@@ -42,11 +41,13 @@ class World {
     currentAction =
       if (codesDown contains "KeyW") {
         val speed = if (codesDown contains "ShiftLeft") 20 else 10
-        Some(MoveAction((player.pos -> mousePos).toAngle, speed))
+        Some(actions.MoveAction((player.pos -> mousePos).toAngle, speed))
+      } else if (codesDown contains "KeyF") {
+        Some(actions.GrabAction())
       } else if (codesDown contains "KeyS") {
-        Some(MoveAction((player.pos -> mousePos).toAngle, -4))
+        Some(actions.MoveAction((player.pos -> mousePos).toAngle, -4))
       } else if (codesDown contains "KeyR") {
-        Some(ReloadAction())
+        Some(actions.ReloadAction())
       } else if (codesDown contains "Space") {
         // TODO: kinda gross to have all this logic here? could move it out into an Action class
         if (player.ammo > 0) {
@@ -55,7 +56,7 @@ class World {
           val firingAngle = player.pointingAngle + (Math.random() * 2 - 1) * 0.1
           val base = player.rightHandPos
           addEntity(new Bullet(firingAngle, 0.1, 4800), base)
-          Some(PauseAction(0.2))
+          Some(actions.PauseAction(0.2))
         } else None
       } else None
   }

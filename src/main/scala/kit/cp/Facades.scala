@@ -182,7 +182,7 @@ class PinJoint(a: Body, b: Body, anchr1: Vect, anchr2: Vect) extends Constraint(
 
 @JSName("cp.SlideJoint")
 @native
-class SlideJoint(a: Body, b: Body, anchr1: Vect, anchr2: Vect, min: Double, max: Double) extends Constraint(a, b)
+class SlideJoint(a: Body, b: Body, var anchr1: Vect, var anchr2: Vect, var min: Double, var max: Double) extends Constraint(a, b)
 
 @JSName("cp.PivotJoint")
 @native
