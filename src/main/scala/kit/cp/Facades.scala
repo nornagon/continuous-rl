@@ -158,7 +158,7 @@ class Space() extends js.Object{
   def segmentQuery(start: Vect, end: Vect, layers: Int, group: Int, func: js.Function3[Shape, Double, Vect, Unit]): Unit = native
   def segmentQueryFirst(start: Vect, end: Vect, layers: Int, group: Int): SegmentQueryInfo = native
   def bbQuery(bb: BB, layers: Int, group: Int, func: js.Function1[Shape, Unit]): Unit = native
-  def shapeQuery(shape: Shape, func: js.Function2[Shape, js.Any, Unit]): Unit = native
+  def shapeQuery(shape: Shape, func: js.Function2[Shape, js.Any, Unit]): Boolean = native
   var damping: Double = native
   var gravity: Vect = native
   var staticBody: Body = native
@@ -186,7 +186,9 @@ class SlideJoint(a: Body, b: Body, anchr1: Vect, anchr2: Vect, min: Double, max:
 
 @JSName("cp.PivotJoint")
 @native
-class PivotJoint(a: Body, b: Body, var anchr1: Vect, var anchr2: Vect) extends Constraint(a, b)
+class PivotJoint(a: Body, b: Body, var anchr1: Vect, var anchr2: Vect) extends Constraint(a, b) {
+  def this(a: Body, b: Body, pivot: Vect) = this(a, b, pivot, null)
+}
 
 @JSName("cp.GrooveJoint")
 @native

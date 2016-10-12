@@ -12,10 +12,6 @@ import scala.scalajs.js.annotation.JSExport
 object Main {
   def makeWorld(): World = {
     val world = new World
-    for (i <- 1 to 20) {
-      val tree = world.addEntity(new entities.Tree, Vec2(Math.random() * 1000 - 500, Math.random() * 1000 - 500))
-      tree.body.setAngle(Math.random() * Math.PI / 2)
-    }
     for (i <- 1 to 4) {
       world.addEntity(new entities.Zombie, Vec2(Math.random() * 1000 - 500, Math.random() * 1000 - 500))
     }
@@ -35,11 +31,32 @@ object Main {
       val seg = Rand.oneOf(roads: _*)
       val t = Rand.between(0, seg.length / 500).floor * 500
       val pointOnRoad = seg.a + (seg.a -> seg.b).normed * t
-      val pointNearRoad = pointOnRoad + (seg.a -> seg.b).perp.normed * Rand.oneOf(-1, 1) * 500
-      val poly = Polygon.square(800).rotateAroundOrigin(-(seg.a -> seg.b).toAngle).translate(pointNearRoad)
+      val angle = (seg.a -> seg.b).toAngle + Math.PI / 2 * Rand.oneOf(-1, 1)
+      val pointNearRoad = pointOnRoad + Vec2.forAngle(angle) * 500
+      val poly = Polygon.square(800).rotateAroundOrigin(-angle).translate(pointNearRoad)
       if (!roads.exists(poly intersects _)) {
-        val smallerPoly = Polygon.square(600).rotateAroundOrigin(-(seg.a -> seg.b).toAngle)
-        world.addEntity(new Building(smallerPoly), pointNearRoad)
+        val smallerPoly = Polygon.square(600).rotateAroundOrigin(-angle).translate(pointNearRoad)
+        for ((seg, i) <- smallerPoly.segments.zipWithIndex) {
+          if (i == 3) {
+            val t = Rand.between(0.2, 0.8) * seg.length
+            val dir = (seg.a -> seg.b).normed
+            val wall1 = Segment2(seg.a, seg.a + dir * (t - 15))
+            val wall2 = Segment2(seg.b, seg.a + dir * (t + 15))
+            world.addEntity(new Building(wall1.toRectangle(8)), Vec2(0, 0))
+            world.addEntity(new Building(wall2.toRectangle(8)), Vec2(0, 0))
+            world.addEntity(new entities.Door(dir.toAngle), seg.a + dir * (t - 15))
+          } else {
+            world.addEntity(new Building(seg.toRectangle(8)), Vec2(0, 0))
+          }
+        }
+      }
+    }
+    for (_ <- 1 to Rand.between(roads.size * 4, roads.size * 8)) {
+      val point = Rand.withinCircle(radius = 10000)
+      val touching = roads.exists(seg => (seg.closestPointTo(point) -> point).length < 100)
+      if (!touching) {
+        val tree = world.addEntity(new entities.Tree, point)
+        tree.body.setAngle(Math.random() * Math.PI / 2)
       }
     }
     world

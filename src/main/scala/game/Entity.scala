@@ -8,7 +8,7 @@ import scala.scalajs.js
 import cp.Implicits._
 import scala.scalajs.js.JSConverters._
 
-object Layer {
+object RenderLayer {
   val Background = -1
   val Ground = 0
   val Top = 1
@@ -20,7 +20,7 @@ trait Entity {
   def castsShadow: Boolean = false
   def layers: Int = Cp.ALL_LAYERS
   final def pos: Vec2 = body.getPos()
-  val layer = Layer.Ground
+  val renderLayer = RenderLayer.Ground
   val debugColor = "red"
   val debugLineWidth = 3
   def draw(ctx: CanvasRenderingContext2D) = {

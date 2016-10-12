@@ -1,6 +1,6 @@
 package game.entities
 
-import game.{Layer, StaticEntity}
+import game.{RenderLayer, StaticEntity}
 import kit.{Segment2, Shape2}
 import org.scalajs.dom.CanvasRenderingContext2D
 import kit.CanvasHelpers._
@@ -8,9 +8,9 @@ import scala.scalajs.js
 
 
 class Road(seg: Segment2) extends StaticEntity {
-  override def shape: Seq[Shape2] = Seq(seg)
+  override def shape: Seq[Shape2] = Seq(seg.toRectangle(200))
 
-  override val layer: Int = Layer.Background
+  override val renderLayer: Int = RenderLayer.Background
 
   override def layers: Int = 0
 

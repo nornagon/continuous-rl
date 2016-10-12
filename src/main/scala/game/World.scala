@@ -35,23 +35,25 @@ class World {
   def mousePos = viewMatrix.inverse * mouseScreenPos
 
   def processInput(): Unit = {
-    player.body.a = (player.pos -> mousePos).toAngle
+    //player.body.a = (player.pos -> mousePos).toAngle
+    val pointingDelta = Math.max(-0.4, Math.min(0.4, Angle.clipToPi((player.pos -> mousePos).toAngle - player.body.a)))
+    player.pointingAngle = player.body.a + pointingDelta
     if (currentAction.isDefined) return
     currentAction =
       if (codesDown contains "KeyW") {
-        val speed = if (codesDown contains "ShiftLeft") 600 else 300
-        Some(MoveAction((player.pos -> mousePos).normed * speed))
+        val speed = if (codesDown contains "ShiftLeft") 20 else 10
+        Some(MoveAction((player.pos -> mousePos).toAngle, speed))
       } else if (codesDown contains "KeyS") {
-        Some(MoveAction((player.pos -> mousePos).normed * -100))
+        Some(MoveAction((player.pos -> mousePos).toAngle, -4))
       } else if (codesDown contains "KeyR") {
         Some(ReloadAction())
       } else if (codesDown contains "Space") {
         // TODO: kinda gross to have all this logic here? could move it out into an Action class
         if (player.ammo > 0) {
           player.ammo -= 1
-          val firingAngle = (player.pos -> mousePos).toAngle + (Math.random() * 2 - 1) * 0.1
-          //val base = player.pos + Vec2.forAngle(player.body.a) * 9 + Vec2.forAngle(player.body.a).perp * 5
-          val base = player.pos + Vec2.forAngle(player.body.a) * 9 + Vec2.forAngle(player.body.a).perp * 5
+          //val firingAngle = (player.pos -> mousePos).toAngle + (Math.random() * 2 - 1) * 0.1
+          val firingAngle = player.pointingAngle + (Math.random() * 2 - 1) * 0.1
+          val base = player.rightHandPos
           addEntity(new Bullet(firingAngle, 0.1, 4800), base)
           Some(PauseAction(0.2))
         } else None
@@ -66,7 +68,7 @@ class World {
   }
 
   def update(): Unit = {
-    val dt = 1.0/60
+    val dt = 1.0/60 * 2
     currentAction match {
       case Some(action) =>
         deadEntities foreach doRemoveEntity
@@ -117,7 +119,7 @@ class World {
     ctx.fillStyle = "hsl(145, 63%, 42%)"
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
     ctx.push(viewMatrix) {
-      val entitiesByLayer = visibleEntities.groupBy(_.layer)
+      val entitiesByLayer = visibleEntities.groupBy(_.renderLayer)
       for (layer <- entitiesByLayer.keys.toSeq.sorted; entity <- entitiesByLayer(layer))
         entity.draw(ctx)
       drawVignette(ctx)
@@ -148,7 +150,7 @@ class World {
       shadowcastingEntities flatMap { e =>
         e.shape.map {
           case p: Polygon =>
-            p.rotateAroundOrigin(e.body.a).translate(e.pos).toPolyLine
+            p.rotateAroundOrigin(-e.body.a).translate(e.pos).toPolyLine
         }
       },
       bounds = viewBounds

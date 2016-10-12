@@ -30,7 +30,7 @@ class Zombie extends DynamicEntity {
   override def hit(world: World, other: Entity): Unit = {
     other match {
       case p: Player =>
-        world.gameOver = true
+        //world.gameOver = true
       case _ =>
     }
   }

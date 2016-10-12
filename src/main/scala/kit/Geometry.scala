@@ -1,6 +1,18 @@
 package kit
 
 
+object Angle {
+  /** Returns an angle equivalent to `a` but within the range [-π, π] */
+  def clipToPi(a: Double): Double = {
+    if (a < -Math.PI)
+      a + (Math.PI * 2 * ((a + Math.PI) / (Math.PI * 2)).floor.abs)
+    else if (a > Math.PI)
+      a - (Math.PI * 2 * ((a - Math.PI) / (Math.PI * 2)).ceil.abs)
+    else
+      a
+  }
+}
+
 case class Vec2(x: Double, y: Double) {
   def +(other: Vec2): Vec2 = Vec2(x + other.x, y + other.y)
   def -(other: Vec2): Vec2 = Vec2(x - other.x, y - other.y)
@@ -202,6 +214,16 @@ case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
   }
 
   def length: Double = (a -> b).length
+
+  def toRectangle(width: Double): Polygon = {
+    val sideways = (a -> b).perp.normed * (width / 2)
+    Polygon(Seq(
+      a + sideways,
+      b + sideways,
+      b - sideways,
+      a - sideways
+    ))
+  }
 }
 
 
@@ -235,12 +257,15 @@ case class Polygon(points: Seq[Vec2]) extends Shape2 {
 
 object Polygon {
   /** A square of side length `side` centered at the origin. */
-  def square(side: Double): Polygon = {
+  def square(side: Double): Polygon =
+    rectangle(side, side)
+
+  def rectangle(width: Double, height: Double): Polygon = {
     Polygon(Seq(
-      Vec2(-side/2, -side/2),
-      Vec2(side/2, -side/2),
-      Vec2(side/2, side/2),
-      Vec2(-side/2, side/2)
+      Vec2(-width/2, -height/2),
+      Vec2(width/2, -height/2),
+      Vec2(width/2, height/2),
+      Vec2(-width/2, height/2)
     ))
   }
 }
