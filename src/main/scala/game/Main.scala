@@ -36,17 +36,20 @@ object Main {
       val poly = Polygon.square(800).rotateAroundOrigin(-angle).translate(pointNearRoad)
       if (!roads.exists(poly intersects _)) {
         val smallerPoly = Polygon.square(600).rotateAroundOrigin(-angle).translate(pointNearRoad)
-        for ((seg, i) <- smallerPoly.segments.zipWithIndex) {
+        for ((fullSeg, i) <- smallerPoly.segments.zipWithIndex) {
+          val wallWidth = 8
+          val halfWall = (fullSeg.a -> fullSeg.b).normed * (wallWidth / 2 + 0.01)
+          val seg = Segment2(fullSeg.a + halfWall, fullSeg.b - halfWall)
           if (i == 3) {
             val t = Rand.between(0.2, 0.8) * seg.length
             val dir = (seg.a -> seg.b).normed
             val wall1 = Segment2(seg.a, seg.a + dir * (t - 15))
             val wall2 = Segment2(seg.b, seg.a + dir * (t + 15))
-            world.addEntity(new Building(wall1.toRectangle(8)), Vec2(0, 0))
-            world.addEntity(new Building(wall2.toRectangle(8)), Vec2(0, 0))
+            world.addEntity(new Building(wall1.toRectangle(wallWidth)), Vec2(0, 0))
+            world.addEntity(new Building(wall2.toRectangle(wallWidth)), Vec2(0, 0))
             world.addEntity(new entities.Door(dir.toAngle), seg.a + dir * (t - 15))
           } else {
-            world.addEntity(new Building(seg.toRectangle(8)), Vec2(0, 0))
+            world.addEntity(new Building(seg.toRectangle(wallWidth)), Vec2(0, 0))
           }
         }
       }

@@ -48,25 +48,29 @@ object FOV {
     )
   }
 
-  def calculateFOV(source: Vec2, polygons: Seq[Seq[Vec2]], bounds: AABB): Seq[Vec2] = {
-    val edges = bounds.toPolygon.toPolyLine
-    val endpoints = (polygons :+ edges).flatMap { points =>
-      points.sliding(2).flatMap {
-        case Seq(a, b) =>
-          bounds.truncate(Segment2(a, b)) match {
-            case None =>
-              Seq.empty
-            case Some(segment) =>
-              val aAngle = (source -> a).toAngle
-              val bAngle = (source -> b).toAngle
-              var dAngle = bAngle - aAngle
-              if (dAngle <= -Math.PI) dAngle += 2 * Math.PI
-              if (dAngle > Math.PI) dAngle -= 2 * Math.PI
-              Seq(
-                Endpoint(a, aAngle, segment, dAngle > 0),
-                Endpoint(b, bAngle, segment, dAngle <= 0)
-              )
-          }
+  /** Amit Patel's algorithm for computing field of view.
+    *
+    * @see http://www.redblobgames.com/articles/visibility/
+    * @param source The source of the "vision"
+    * @param segments A list of segments which block vision.
+    * @param bounds A bounding box beyond which vision will not propagate.
+    * @return A list of vertices which form the edge of vision.
+    */
+  def calculateFOV(source: Vec2, segments: Seq[Segment2], bounds: AABB): Seq[Vec2] = {
+    val endpoints = (segments ++ bounds.toPolygon.segments).flatMap { segment =>
+      bounds.truncate(segment) match {
+        case None =>
+          Seq.empty
+        case Some(truncated) =>
+          val aAngle = (source -> segment.a).toAngle
+          val bAngle = (source -> segment.b).toAngle
+          var dAngle = bAngle - aAngle
+          if (dAngle <= -Math.PI) dAngle += 2 * Math.PI
+          if (dAngle > Math.PI) dAngle -= 2 * Math.PI
+          Seq(
+            Endpoint(segment.a, aAngle, truncated, dAngle > 0),
+            Endpoint(segment.b, bAngle, truncated, dAngle <= 0)
+          )
       }
     }.sortWith((a, b) => a.angle < b.angle || (a.angle == b.angle && a.isBegin && !b.isBegin))
 

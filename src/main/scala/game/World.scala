@@ -149,9 +149,9 @@ class World {
     val fov = FOV.calculateFOV(
       player.pos,
       shadowcastingEntities flatMap { e =>
-        e.shape.map {
+        e.shape.flatMap {
           case p: Polygon =>
-            p.rotateAroundOrigin(-e.body.a).translate(e.pos).toPolyLine
+            p.rotateAroundOrigin(-e.body.a).translate(e.pos).segments
         }
       },
       bounds = viewBounds
