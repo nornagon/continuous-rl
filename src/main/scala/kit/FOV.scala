@@ -110,4 +110,75 @@ object FOV {
     }
     output.flatten
   }
+
+  /** Returns the point on `ray` that is also in `other`, or 1.0 if no such point exists */
+  def rayHit(ray: Segment2, other: Segment2): Double = {
+    // http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+    val dir = ray.a -> ray.b
+    val otherDir = other.a -> other.b
+    val dxo = dir cross otherDir
+    if (dxo == 0) {
+      if (((ray.a -> other.a) cross dir) == 0) {
+        // The two segments are collinear.
+        val t0 = ((ray.a -> other.a) dot dir) / (dir dot dir)
+        val t1 = t0 + ((otherDir dot dir) / (dir dot dir))
+        if ((t1 > t0 && t0 <= 1 && t1 >= 0) || (t1 <= t0 && t1 <= 1 && t0 >= 0))
+          // TODO hmm
+          Math.min(t0, t1)
+        else
+        // collinear but not intersecting
+          1.0
+      } else {
+        // The two segments are parallel and non-intersecting.
+        1.0
+      }
+    } else {
+      val t = ((ray.a -> other.a) cross otherDir) / dxo
+      val u = ((ray.a -> other.a) cross dir) / dxo
+      //println(s"non-collinear, $ray $other $t $u")
+      if (0 <= t && t <= 1 && 0 <= u && u <= 1)
+        t
+      else
+        1.0
+    }
+  }
+
+  /** Raycasting approach to computing FOV.
+    *
+    * Heavily based on https://legends2k.github.io/2d-fov/design.html
+    * @param source The source of the "vision"
+    * @param segments A list of segments which block vision.
+    * @param bounds A bounding box beyond which vision will not propagate.
+    * @return A list of vertices which form the edge of vision.
+    */
+  def calculateFOV2(source: Vec2, segments: Seq[Segment2], bounds: AABB): Seq[Vec2] = {
+    // thought: add all the sight lines as segments to the boundary use Bentley-Ottmann for (n + k) lg n instead of n^2
+    // https://en.wikipedia.org/wiki/Bentley%E2%80%93Ottmann_algorithm
+    val maxDist = bounds.maxDimension / 2
+    val points = mutable.Set.empty[Vec2] ++ bounds.toPolygon.points
+    val segmentsAtPoint = mutable.Map.empty[Vec2, Seq[Vec2]].withDefaultValue(Seq.empty)
+    for (seg <- segments) {
+      points += seg.a
+      points += seg.b
+      segmentsAtPoint(seg.a) :+= seg.b
+      segmentsAtPoint(seg.b) :+= seg.a
+    }
+    val outline = points.toSeq.flatMap { p =>
+      val dir = (source -> p).normed
+      val connectedPoints = segmentsAtPoint(p)
+      val ray = Segment2(source, p)
+      val adjustedRay =
+        if (connectedPoints.forall(isLeftOf(ray, _)))
+          Segment2(source, source + dir.rotate(-0.0001) * maxDist)
+        else if (connectedPoints.forall(!isLeftOf(ray, _)))
+          Segment2(source, source + dir.rotate(0.0001) * maxDist)
+        else
+          ray
+      for (r <- Set(ray, adjustedRay)) yield {
+        val minT = segments.view.map(rayHit(r, _)).min
+        r.a.lerp(r.b, minT)
+      }
+    }.sortBy(p => (source -> p).toAngle)
+    outline :+ outline.head
+  }
 }

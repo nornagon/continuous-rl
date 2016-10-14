@@ -275,6 +275,8 @@ object Polygon {
   * `lower` must be <= `upper` in both dimensions.
   */
 case class AABB(lower: Vec2, upper: Vec2) {
+  def maxDimension = Math.max(upper.x - lower.x, upper.y - lower.y)
+
   require(lower.x <= upper.x && lower.y <= upper.y, s"Invalid AABB: $lower must be <= $upper")
 
   def toPolygon: Polygon = Polygon(Seq(lower, lower.copy(x = upper.x), upper, lower.copy(y = upper.y)))

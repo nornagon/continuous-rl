@@ -146,7 +146,7 @@ class World {
     val shadowcastColor = "rgba(0, 0, 0, 1.0)"
     val shadowcastingEntities = visibleEntities filter (_.castsShadow)
     ctx.fillStyle = shadowcastColor
-    val fov = FOV.calculateFOV(
+    val fov = FOV.calculateFOV2(
       player.pos,
       shadowcastingEntities flatMap { e =>
         e.shape.flatMap {

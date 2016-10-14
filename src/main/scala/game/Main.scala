@@ -10,6 +10,12 @@ import scala.scalajs.js.annotation.JSExport
 
 @JSExport
 object Main {
+  def makeTestWorld(): World = {
+    val world = new World
+    world.screenSize = Vec2(ctx.canvas.width, ctx.canvas.height)
+    world.addEntity(new entities.Building(Circle2(Vec2(0, 0), 40).toPolygon(4)), Vec2(100, 0))
+    world
+  }
   def makeWorld(): World = {
     val world = new World
     for (i <- 1 to 4) {
@@ -36,10 +42,8 @@ object Main {
       val poly = Polygon.square(800).rotateAroundOrigin(-angle).translate(pointNearRoad)
       if (!roads.exists(poly intersects _)) {
         val smallerPoly = Polygon.square(600).rotateAroundOrigin(-angle).translate(pointNearRoad)
-        for ((fullSeg, i) <- smallerPoly.segments.zipWithIndex) {
+        for ((seg, i) <- smallerPoly.segments.zipWithIndex) {
           val wallWidth = 8
-          val halfWall = (fullSeg.a -> fullSeg.b).normed * (wallWidth / 2 + 0.01)
-          val seg = Segment2(fullSeg.a + halfWall, fullSeg.b - halfWall)
           if (i == 3) {
             val t = Rand.between(0.2, 0.8) * seg.length
             val dir = (seg.a -> seg.b).normed
@@ -95,6 +99,7 @@ object Main {
     root.appendChild(element)
     ctx = element.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
     world = makeWorld()
+    //world = makeTestWorld()
     dom.window.addEventListener("keydown", (e: KeyboardEvent) => {
       world.codesDown += e.asInstanceOf[js.Dynamic].code.asInstanceOf[String]
     })
