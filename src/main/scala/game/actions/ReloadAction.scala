@@ -1,15 +1,16 @@
 package game.actions
 
+import game.items.Gun
 import game.{PlayerAction, World}
 
 
-case class ReloadAction() extends PlayerAction {
+case class ReloadAction(gun: Gun) extends PlayerAction {
   val duration = 8
   var t = 0.0
   override def update(world: World, dt: Double): Unit = {
     t += dt
     if (t >= duration) {
-      world.player.ammo = 6
+      gun.ammo = gun.props.maxAmmo
     }
   }
 

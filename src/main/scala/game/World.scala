@@ -1,6 +1,7 @@
 package game
 
 import game.entities.{Bullet, Player}
+import game.items.Gun
 import kit._
 import org.scalajs.dom.CanvasRenderingContext2D
 import scala.collection.mutable
@@ -34,7 +35,6 @@ class World {
   def mousePos = viewMatrix.inverse * mouseScreenPos
 
   def processInput(): Unit = {
-    //player.body.a = (player.pos -> mousePos).toAngle
     val pointingDelta = Math.max(-0.4, Math.min(0.4, Angle.clipToPi((player.pos -> mousePos).toAngle - player.body.a)))
     player.pointingAngle = player.body.a + pointingDelta
     if (currentAction.isDefined) return
@@ -47,17 +47,41 @@ class World {
       } else if (codesDown contains "KeyS") {
         Some(actions.MoveAction((player.pos -> mousePos).toAngle, -4))
       } else if (codesDown contains "KeyR") {
-        Some(actions.ReloadAction())
-      } else if (codesDown contains "Space") {
-        // TODO: kinda gross to have all this logic here? could move it out into an Action class
-        if (player.ammo > 0) {
-          player.ammo -= 1
-          //val firingAngle = (player.pos -> mousePos).toAngle + (Math.random() * 2 - 1) * 0.1
-          val firingAngle = player.pointingAngle + (Math.random() * 2 - 1) * 0.1
-          val base = player.rightHandPos
-          addEntity(new Bullet(firingAngle, 0.1, 4800), base)
+        player.held.flatMap(_.component[items.Gun]) match {
+          case Some(gun) =>
+            Some(actions.ReloadAction(gun))
+          case None =>
+            None
+        }
+      } else if (codesDown contains "KeyD") {
+        player.held match {
+          case Some(item) =>
+            player.held = None
+            addEntity(new entities.ItemEntity(item), player.pos)
+            Some(actions.PauseAction(0.1))
+          case None =>
+            None
+        }
+      } else if (codesDown contains "KeyG") {
+        val itemsHere = entitiesWithin(Circle2(player.pos, 20)).collect { case ie: entities.ItemEntity => ie }
+        if (itemsHere.nonEmpty) {
+          val closest = itemsHere.minBy { ie => (player.pos -> ie.pos).lengthSquared }
+          removeEntity(closest)
+          player.held = Some(closest.item)
           Some(actions.PauseAction(0.2))
         } else None
+      } else if (codesDown contains "Space") {
+        player.held.flatMap(_.component[items.Gun]) match {
+          case Some(gun) =>
+            if (gun.ammo > 0) {
+              gun.ammo -= 1
+              val firingAngle = player.pointingAngle + (Math.random() * 2 - 1) * 0.1
+              val base = player.rightHandPos
+              addEntity(new Bullet(firingAngle, 0.1, 4800), base)
+              Some(actions.PauseAction(0.2))
+            } else None
+          case None => None
+        }
       } else None
   }
 
@@ -89,27 +113,43 @@ class World {
   }
 
   def entitiesWithin(aabb: AABB): Seq[Entity] = {
-    val shapes = mutable.Buffer[cp.Shape]()
+    val entities = mutable.Set.empty[Entity]
+
+    def check(s: cp.Shape): Unit = {
+      if (aabb.intersects(s.getBB()))
+        entities += entityForBody(s.getBody())
+    }
 
     // Query the BBTrees directly instead of through bbQuery so we can ignore layers/groups, otherwise roads don't get drawn
     // TODO: use a separate (non-cpSpace) BBTree for tracking non-colliding static shapes?
-    space.staticShapes.query(aabb, (s: cp.Shape) => {
-      if (aabb.intersects(s.getBB()))
-        shapes.append(s)
-    })
-    space.activeShapes.query(aabb, (s: cp.Shape) => {
-      if (aabb.intersects(s.getBB()))
-        shapes.append(s)
-    })
-
-    val entities = shapes.map(s => entityForBody(s.getBody()))
+    space.staticShapes.query(aabb, check _)
+    space.activeShapes.query(aabb, check _)
 
     // Add shapeless entities (e.g. bullets, splatters) according to their body locations
     // TODO: represent these in a BBTree somehow?
     for (e <- staticEntities ++ dynamicEntities; if e.body.shapeList.length == 0; if aabb.contains(e.pos))
-      entities.append(e)
+      entities += e
 
-    entities
+    entities.toSeq
+  }
+
+  def entitiesWithin(c: Circle2): Seq[Entity] = {
+    val entities = mutable.Set.empty[Entity]
+    val aabb = c.boundingBox
+    val qShape = new cp.CircleShape(null, c.r, c.c)
+    def check(s: cp.Shape): Unit = {
+      if (aabb.intersects(s.getBB())) {
+        val contacts = cp.collideShapes(qShape, s)
+        if (contacts.length > 0)
+          entities += entityForBody(s.getBody())
+      }
+    }
+    space.staticShapes.query(aabb, check _)
+    space.activeShapes.query(aabb, check _)
+
+    // TODO: shapeless bodies?
+
+    entities.toSeq
   }
 
   def draw(ctx: CanvasRenderingContext2D): Unit = {
@@ -126,13 +166,17 @@ class World {
       drawVignette(ctx)
       drawFOV(ctx, viewBounds, visibleEntities)
     }
-    for (i <- 0 until player.ammo) {
-      ctx.drawImage(Assets.square, 0, 0, Assets.square.width, Assets.square.height,
-        ctx.canvas.width - Assets.square.width - 10 - (Assets.square.width + 5) * i,
-        10,
-        Assets.square.width,
-        Assets.square.height
-      )
+    player.held.flatMap(_.component[items.Gun]) match {
+      case Some(gun) =>
+        for (i <- 0 until gun.ammo) {
+          ctx.drawImage(Assets.square, 0, 0, Assets.square.width, Assets.square.height,
+            ctx.canvas.width - Assets.square.width - 10 - (Assets.square.width + 5) * i,
+            10,
+            Assets.square.width,
+            Assets.square.height
+          )
+        }
+      case None =>
     }
     ctx.save {
       ctx.fillStyle = "thistle"
@@ -214,7 +258,8 @@ class World {
       case dynamic: DynamicEntity =>
         dynamicEntities.remove(dynamicEntities.indexOf(dynamic))
     }
-    space.removeBody(e.body)
+    if (space.containsBody(e.body))
+      space.removeBody(e.body)
     for (s <- e.body.shapeList)
       space.removeShape(s)
   }

@@ -158,6 +158,8 @@ trait Shape2 {
 
 /** A circle of radius `r` centered at `c`. */
 case class Circle2(c: Vec2, r: Double) extends Shape2 {
+  def boundingBox = AABB(c - Vec2(r, r), c + Vec2(r, r))
+
   override def intersects(other: Shape2): Boolean = other match {
     case other: Circle2 => (c - other.c).length <= r + other.r
     case o => o intersects this

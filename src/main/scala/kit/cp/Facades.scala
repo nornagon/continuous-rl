@@ -40,6 +40,7 @@ class Shape(body: Body) extends js.Object {
   var bb_b: Double = native
   var bb_r: Double = native
   var bb_t: Double = native
+  val collisionCode: Int = native
 }
 
 @JSName("cp.PointQueryExtendedInfo")
@@ -169,9 +170,14 @@ class Space() extends js.Object{
   val staticShapes: BBTree = native
 }
 
+// TODO: this isn't actually exposed as cp.Contact, only returned from some stuff
+@JSName("cp.Contact")
+@native
+class Contact(var p: Vect, var n: Vect, var dist: Double, var hash: Int) extends js.Object
+
 @JSName("cp.Constraint")
 @native
-class Constraint(var a: Body, var b: Body) extends js.Object{
+class Constraint(var a: Body, var b: Body) extends js.Object {
   def activateBodies(): js.Any = native
   var maxForce: Double = native
 }

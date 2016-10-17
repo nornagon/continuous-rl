@@ -1,6 +1,7 @@
 package game.entities
 
 import game.actions.MoveAction
+import game.items.Item
 import game.{Assets, DynamicEntity, World}
 import kit._
 import org.scalajs.dom.CanvasRenderingContext2D
@@ -10,7 +11,9 @@ import kit.cp.Implicits._
 
 class Player extends DynamicEntity {
   override def mass = 10.0
-  var ammo = 6
+
+  var held: Option[Item] = None
+
   def update(world: World, dt: Double): Unit = {
     world.currentAction match {
       case Some(action) =>
@@ -41,20 +44,22 @@ class Player extends DynamicEntity {
   override def draw(ctx: CanvasRenderingContext2D): Unit = {
     ctx.at(pos, body.a) {
       val rightArmRotateCenter = Vec2(2, 4)
-      ctx.at(rightArmAttachPoint, pointingAngle - body.a) {
-        ctx.drawImage(
-          Assets.blueManRightArm, 0, 0, Assets.blueManRightArm.width, Assets.blueManRightArm.height,
-          -rightArmRotateCenter.x, -rightArmRotateCenter.y,
-          Assets.blueManRightArm.width * 0.5, Assets.blueManRightArm.height * 0.5
-        )
-      }
-      ctx.at(rightArmAttachPoint + Vec2.forAngle(pointingAngle - body.a) * 6, pointingAngle - body.a) {
-        val gunAttachPoint = Vec2(2, 5)
-        ctx.drawImage(
-          Assets.gun, 0, 0, Assets.gun.width, Assets.gun.height,
-          -gunAttachPoint.x, -gunAttachPoint.y,
-          Assets.gun.width * 0.5, Assets.gun.height * 0.5
-        )
+      for (item <- held) {
+        ctx.at(rightArmAttachPoint, pointingAngle - body.a) {
+          ctx.drawImage(
+            Assets.blueManRightArm, 0, 0, Assets.blueManRightArm.width, Assets.blueManRightArm.height,
+            -rightArmRotateCenter.x, -rightArmRotateCenter.y,
+            Assets.blueManRightArm.width * 0.5, Assets.blueManRightArm.height * 0.5
+          )
+        }
+        ctx.at(rightArmAttachPoint + Vec2.forAngle(pointingAngle - body.a) * 6, pointingAngle - body.a) {
+          val gunAttachPoint = Vec2(2, 5)
+          ctx.drawImage(
+            Assets.gun, 0, 0, Assets.gun.width, Assets.gun.height,
+            -gunAttachPoint.x, -gunAttachPoint.y,
+            Assets.gun.width * 0.5, Assets.gun.height * 0.5
+          )
+        }
       }
       ctx.drawImageCentered(Assets.blueMan, Vec2(0, 0), 0.5)
     }

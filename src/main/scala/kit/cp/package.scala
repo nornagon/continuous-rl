@@ -16,6 +16,18 @@ package object cp {
     def centroidForPoly(verts: js.Array[Double]): Vect = native
     def recenterPoly(verts: js.Array[Double]): Unit = native
 
+    def collideShapes(a: Shape, b: Shape): js.Array[Contact] = native
+
     val ALL_LAYERS: Int = native
+  }
+
+  def collideShapes(a: Shape, b: Shape): js.Array[Contact] = {
+    if (a.collisionCode <= b.collisionCode)
+      Cp.collideShapes(a, b)
+    else {
+      val cs = Cp.collideShapes(b, a)
+      cs foreach { c => c.n.x = -c.n.x; c.n.y = -c.n.y }
+      cs
+    }
   }
 }

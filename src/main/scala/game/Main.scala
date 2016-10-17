@@ -1,6 +1,7 @@
 package game
 
 import game.entities.{Building, Road, ZombieSpawner}
+import game.items._
 import kit._
 import org.scalajs.dom
 import org.scalajs.dom._
@@ -16,8 +17,36 @@ object Main {
     world.addEntity(new entities.Building(Circle2(Vec2(0, 0), 40).toPolygon(4)), Vec2(100, 0))
     world
   }
+  val gunDef = ItemDef(
+    id = "gun",
+    name = "A pistol",
+    componentProps = Seq(
+      GunProperties(6)
+    )
+  )
+  val ammoDef = ItemDef(
+    id = "ammo",
+    name = "A bullet",
+    componentProps = Seq(
+      AmmoProperties("9mm")
+    )
+  )
+  val magazineDef = ItemDef(
+    id = "magazine",
+    name = "A magazine which holds bullets",
+    componentProps = Seq(
+      ContainerProperties(maxVolume = "200:milliliter")
+    )
+  )
+  def makeMagazine(ammoDef: ItemDef, count: Int): Item = {
+    val mag = Item.fromDefinition(magazineDef)
+    for (_ <- 1 to count)
+      mag[Container].containedItems.append(Item.fromDefinition(ammoDef))
+    mag
+  }
   def makeWorld(): World = {
     val world = new World
+    world.player.held = Some(Item.fromDefinition(gunDef))
     for (i <- 1 to 4) {
       world.addEntity(new entities.Zombie, Vec2(Math.random() * 1000 - 500, Math.random() * 1000 - 500))
     }
@@ -55,6 +84,9 @@ object Main {
           } else {
             world.addEntity(new Building(seg.toRectangle(wallWidth)), Vec2(0, 0))
           }
+        }
+        for (i <- 0 until Rand.between(0, 4)) {
+          world.addEntity(new entities.ItemEntity(null), pointNearRoad + Rand.withinCircle(300))
         }
       }
     }
