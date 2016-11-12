@@ -123,10 +123,22 @@ object Main {
 
   @JSExport
   def main(root: html.Div): Unit = {
+
+    val itemDef = ItemDef(
+      componentProps = Seq(
+        WearableProperties("torso", 1, 1)
+      ),
+      name = "T-shirt",
+      id = "tshirt"
+    )
+    val item = Item.fromDefinition(itemDef)
+    println(item[Wearable].props.location)
+
+
     root.innerHTML = ""  // Otherwise workbench update doesn't work properly
     val element = dom.document.createElement("canvas").asInstanceOf[html.Canvas]
-    element.width = dom.window.innerWidth
-    element.height = dom.window.innerHeight
+    element.width = dom.window.innerWidth.toInt
+    element.height = dom.window.innerHeight.toInt
     element.style.display = "block"
     root.appendChild(element)
     ctx = element.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]

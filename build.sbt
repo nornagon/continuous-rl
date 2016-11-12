@@ -12,8 +12,9 @@ scalaVersion := "2.11.7"
 
 libraryDependencies ++= Seq(
   "org.scala-js" %%% "scalajs-dom" % "0.9.0",
-  "com.lihaoyi" %%% "scalatags" % "0.5.4",
-  "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+  "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
+  "com.lihaoyi" %%% "upickle" % "0.4.3",
+  "com.lihaoyi" %%% "scalatags" % "0.6.1"
 )
 
 bootSnippet := """game.Main().main(document.getElementById("appRoot"));"""

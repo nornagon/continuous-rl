@@ -34,6 +34,7 @@ class Shape(body: Body) extends js.Object {
   def getBB(): BB = native
   def update(pos: Vect, rot: Double): js.Any = native
   def pointQuery(p: Vect): js.UndefOr[NearestPointQueryInfo] = native
+  def update(p: Vect, rot: Vect): Unit = native
   var layers: Int = native
   var group: Int = native
   var bb_l: Double = native

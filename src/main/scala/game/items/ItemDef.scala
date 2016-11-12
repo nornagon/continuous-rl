@@ -23,9 +23,9 @@ case class ContainerProperties(
 class Container(val props: ContainerProperties) extends ItemComponent {
   val containedItems = mutable.Buffer.empty[Item]
 
-  def findRecursive(f: Item => Boolean): Seq[Item] = {
+  /*def findRecursive(f: Item => Boolean): Seq[Item] = {
     containedItems.filter(f) ++ containedItems.flatMap { c => c.component[Container].flatMap(_.findRecursive(f)) }
-  }
+  }*/
 }
 
 

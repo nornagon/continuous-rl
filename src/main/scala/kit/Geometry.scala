@@ -150,6 +150,13 @@ object Mat33 {
       0, 0, 1
     )
   }
+  def scale(k: Double): Mat33 = {
+    Mat33(
+      k, 0, 0,
+      0, k, 0,
+      0, 0, 1
+    )
+  }
 }
 
 trait Shape2 {
@@ -167,6 +174,8 @@ case class Circle2(c: Vec2, r: Double) extends Shape2 {
 
   def toPolygon(numPoints: Int, startAngle: Double = 0): Polygon =
     Polygon(Vec2.aroundCircle(numPoints, startAngle).map(_ * r)).translate(c)
+
+  def area: Double = Math.PI * r * r
 }
 
 /** A segment beginning at `a` and ending at `b`. */
@@ -238,6 +247,10 @@ case class Polygon(points: Seq[Vec2]) extends Shape2 {
   def translate(offset: Vec2): Polygon = Polygon(points map (_ + offset))
   /** Rotate all the points in the polygon about Vec2(0, 0). */
   def rotateAroundOrigin(angle: Double): Polygon = Polygon(points map (_.rotate(angle)))
+  /** Scale all the points in the polygon by `k`. */
+  def scale(k: Double): Polygon = Polygon(points map (_ * k))
+
+  def transform(mat: Mat33): Polygon = Polygon(points map (mat * _))
 
   // TODO: this might actually be isCW?
   def isCCW: Boolean = (points ++ points.takeRight(2)).sliding(3).forall {
@@ -248,12 +261,35 @@ case class Polygon(points: Seq[Vec2]) extends Shape2 {
 
   def toCCWPolyLine = if (isCCW) toPolyLine else toPolyLine.reverse
 
+  /** Area of the polygon, assuming its segments are non-intersecting. */
+  def area: Double = (segments.foldLeft(0.0) { (a, s) => a + (s.a cross s.b) } / 2).abs
+
   /** A sequence of segments representing the edges of this polygon. */
   def segments = toPolyLine.sliding(2) map { case Seq(a, b) => Segment2(a, b) }
 
   override def intersects(other: Shape2): Boolean = other match {
     case seg: Segment2 =>
       segments.exists(_ intersects seg)
+  }
+
+  lazy val aabb = {
+    var lowerX = points.head.x
+    var lowerY = points.head.y
+    var upperX = points.head.x
+    var upperY = points.head.y
+    for (p <- points.tail) {
+      if (p.x < lowerX) lowerX = p.x
+      if (p.x > upperX) upperX = p.x
+      if (p.y < lowerY) lowerY = p.y
+      if (p.y > upperY) upperY = p.y
+    }
+    AABB(Vec2(lowerX, lowerY), Vec2(upperX, upperY))
+  }
+
+  def toSVG: String = {
+    val h = points.head
+    val t = points.tail
+    s"M${h.x},${h.y} ${t.map(p => s"L${p.x},${p.y}").mkString(" ")} Z"
   }
 }
 
@@ -277,9 +313,11 @@ object Polygon {
   * `lower` must be <= `upper` in both dimensions.
   */
 case class AABB(lower: Vec2, upper: Vec2) {
-  def maxDimension = Math.max(upper.x - lower.x, upper.y - lower.y)
-
   require(lower.x <= upper.x && lower.y <= upper.y, s"Invalid AABB: $lower must be <= $upper")
+
+  def width: Double = upper.x - lower.x
+  def height: Double = upper.y - lower.y
+  def maxDimension = Math.max(width, height)
 
   def toPolygon: Polygon = Polygon(Seq(lower, lower.copy(x = upper.x), upper, lower.copy(y = upper.y)))
 
@@ -337,4 +375,7 @@ case class AABB(lower: Vec2, upper: Vec2) {
     Math.max(lower.x, Math.min(upper.x, point.x)),
     Math.max(lower.y, Math.min(upper.y, point.y))
   )
+
+  def expand(k: Double): AABB = AABB(lower - Vec2(k, k), upper + Vec2(k, k))
+  def shrink(k: Double): AABB = AABB(lower + Vec2(k, k), upper - Vec2(k, k))
 }
