@@ -308,6 +308,11 @@ object Polygon {
   }
 }
 
+object AABB {
+  def apply(lowerX: Double, lowerY: Double, upperX: Double, upperY: Double): AABB =
+    AABB(Vec2(lowerX, lowerY), Vec2(upperX, upperY))
+}
+
 /** Axis-aligned bounding box.
   *
   * `lower` must be <= `upper` in both dimensions.

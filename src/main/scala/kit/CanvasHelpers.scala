@@ -73,6 +73,10 @@ object CanvasHelpers {
       ctx.arc(c.x, c.y, r, 0, Math.PI * 2)
     }
 
+    def circle(c: Circle2): Unit = {
+      circle(c.c, c.r)
+    }
+
     def fillPath(p: => Unit): Unit = {
       ctx.beginPath()
       p

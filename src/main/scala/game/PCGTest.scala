@@ -2,7 +2,7 @@ package game
 
 import kit._
 import org.scalajs.dom
-import org.scalajs.dom.{KeyboardEvent, html}
+import org.scalajs.dom.{KeyboardEvent, MouseEvent, html}
 import scala.scalajs.js.annotation.JSExport
 import kit.CanvasHelpers._
 import kit.pcg.{LloydRelaxation, Noise, SpacePacking}
@@ -172,7 +172,8 @@ object PCGTest {
     //boxes(root)
     //withCanvas(root, noise)
     //withCanvas(root, particles)
-    particlesSVG(root)
+    //particlesSVG(root)
+    withCanvas(root, voronoi)
   }
 
   def withCanvas(root: html.Div, f: html.Canvas => Unit): Unit = {
@@ -248,7 +249,66 @@ object PCGTest {
     root.innerHTML = ""
     root.appendChild(e)
   }
-  /*
+
+  def voronoi(canvas: html.Canvas): Unit = {
+    val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+    val width = 512d
+    val height = 512d
+    val margin = 32d
+    val r = new scala.util.Random(44)
+    val points = for (i <- 1 to 10) yield Vec2(r.nextDouble() * width + margin, r.nextDouble() * width + margin)
+    //val points = Seq(Vec2(50, 30), Vec2(70, 60), Vec2(80, 80))
+
+    var mousePos: Option[Vec2] = None
+    dom.window.onmousemove = (e: MouseEvent) => {
+      mousePos = Some(Vec2(e.clientX, e.clientY))
+      draw()
+    }
+
+    def draw(): Unit = {
+      val relevantMousePos = mousePos.filter(AABB(0, 0, width + margin * 2, height + margin * 2).contains(_))
+      val directrix = relevantMousePos.map(_.y).getOrElse(0.0)
+      val v = new Voronoi(points)
+      while (v.nextEventY.exists(_ < directrix)) v.step()
+      println(s"num circles: ${v.circles().size}")
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      for (p <- points) {
+        ctx.fillPath("blue") { ctx.circle(p, 4) }
+      }
+      val colors = 0 to 10 map (i => s"hsl(${i/10.0*360}, ${if (i%2==0) 50 else 100}%, 50%)")
+      val circledBeaches = v.circles().map(_._1)
+      for ((b, i) <- v.beaches.zipWithIndex) {
+        if (b.site.y == directrix) {
+          ctx.strokePath(colors(i % colors.size)) { ctx.moveTo(b.site); ctx.lineTo(b.site.x, 0)  }
+        } else {
+          val rightmost = if (i == v.beaches.size - 1) Double.PositiveInfinity else v.leftBreakPoint(b.site, v.beaches(i+1).site, directrix)
+          val leftmost = if (i == 0) Double.NegativeInfinity else v.leftBreakPoint(v.beaches(i-1).site, b.site, directrix)
+          val parabolaPoints =
+            for (x <- math.max(0, leftmost) to math.min(width + margin * 2, rightmost) by 1) yield {
+              // y = ((a-x)^2 / (b-k) + (b + k))/2
+              // where (a,b) is the focus and y=k is the directrix
+              val y = 0.5 * ((b.site.x - x) * (b.site.x - x) / (b.site.y - directrix) + b.site.y + directrix)
+              Vec2(x, y)
+            }
+          if (parabolaPoints.nonEmpty)
+            ctx.strokePath(if (circledBeaches.contains(b)) "red" else colors(i % colors.size)) { ctx.polyLine(parabolaPoints) }
+        }
+      }
+      for ((_, c) <- v.circles()) {
+        ctx.strokePath("black") { ctx.circle(c) }
+      }
+      ctx.strokePath("red") { ctx.moveTo(0, directrix + 0.5); ctx.lineTo(width + margin * 2, directrix + 0.5) }
+      for ((Seq(lx_, rx_), i) <- v.beachProjections(directrix).sliding(2).filter(_.size == 2).zipWithIndex) {
+        val lx = math.max(0, lx_)
+        val rx = math.min(width + margin * 2, rx_)
+        if (rx > lx)
+          ctx.fillPath(colors(i % colors.size)) { ctx.rect(lx, directrix + 1, rx - lx, 5) }
+      }
+    }
+    draw()
+  }
+
+
   def particles(canvas: html.Canvas): Unit = {
     case class ParticleM(var p: Vec2, var v: Vec2)
     val particles = mutable.Buffer[ParticleM]()
@@ -276,7 +336,6 @@ object PCGTest {
     }
     dom.window.setInterval(frame _, 100)
   }
-  */
 
   def noise(canvas: html.Canvas): Unit = {
     val n = new Noise(0)

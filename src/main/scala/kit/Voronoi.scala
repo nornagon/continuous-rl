@@ -10,47 +10,108 @@ class Voronoi(sites: Seq[Vec2]) {
       if (dy != 0) dy else math.signum(b.x - a.x).toInt
     }
   }
-  val sortedSites = mutable.Queue() ++ sites.sorted(lexicographicYX)
-  case class Beach()
-  case class Circle(x: Double, y: Double)
-  //val beaches = mutable.TreeSet.empty[Beach]
-  val circles = mutable.TreeSet.empty[Circle](Ordering.by(_.y))
 
-  def addBeach(v: Vec2): Unit = ???
-  def removeBeach(beach: Beach): Unit = ???
+  val sortedSites = sites.sorted(lexicographicYX.reverse)
 
-  /** Given two parabola with foci at `f1` and `f2` and a common horizontal directrix, return the x value of their intersection.
-    * Cribbed from d3-voronoi, I haven't checked this math myself. */
-  def parabolaIntersection(directrix: Double, f1: Vec2, f2: Vec2): Double = {
-    val (lfoc, rfoc) = if (f1.x < f2.x) (f1, f2) else (f2, f1)
-    val pby2 = rfoc.y - directrix
-    if (pby2 == 0) return rfoc.x
-    val plby2 = lfoc.y - directrix
-    if (plby2 == 0) return lfoc.x
-    val hl = lfoc.x - rfoc.x
+  var nextBeachId = 0
+  case class Beach(site: Vec2, id: Int = { nextBeachId += 1; nextBeachId })
+  case class Cell(site: Vec2)
+  val cells = mutable.Buffer[Cell]()
+
+  val beaches = mutable.Buffer[Beach]()
+
+  val siteEvents = mutable.Buffer[Vec2]() ++ sortedSites
+  def nextSite: Option[Vec2] = siteEvents.headOption
+  def nextEventY: Option[Double] = {
+    val nc = nextCircle()
+    val ns = nextSite
+    if (nc.isEmpty && ns.isEmpty) return None
+    if (ns.isDefined && (nc.isEmpty || nc.get._2.c.y + nc.get._2.r > ns.get.y)) {
+      Some(ns.get.y)
+    } else Some(nc.get._2.c.y + nc.get._2.r)
+  }
+  def step(): Boolean = {
+    val nc = nextCircle()
+    val ns = nextSite
+    if (nc.isEmpty && ns.isEmpty) return true
+    if (ns.isDefined && (nc.isEmpty || nc.get._2.c.y + nc.get._2.r > ns.get.y)) {
+      val site = siteEvents.remove(0)
+      addBeach(site)
+    } else {
+      beaches.remove(beaches.indexOf(nc.get._1))
+    }
+    false
+  }
+
+  def nextCircle(): Option[(Beach, Circle2)] = {
+    val cs = circles()
+    if (cs.isEmpty) None
+    else Some(cs.minBy { case (_, c) => c.c.y + c.r })
+  }
+
+  def circles(): Seq[(Beach, Circle2)] = {
+    (for {
+      Seq(l, m, r) <- beaches.sliding(3).filter(_.size == 3)
+      if l.site != r.site
+      if l.site.y > m.site.y || r.site.y > m.site.y
+      b = m.site
+      a = m.site -> l.site
+      c = m.site -> r.site
+      d = 2 * (a cross c)
+      if d < 0
+    } yield {
+      val ha = a.lengthSquared
+      val hc = c.lengthSquared
+      val vec = Vec2(c.y * ha - a.y * hc, a.x * hc - c.x * ha) / d
+      (m, Circle2(vec + b, vec.length))
+    }).toSeq
+  }
+
+  def addBeach(site: Vec2): Unit = {
+    val Vec2(x, directrix) = site
+    val beachIdx = findBeachIdxAtX(x, directrix)
+    beachIdx match {
+      case None =>
+        beaches.insert(0, Beach(site))
+      case Some(idx) =>
+        beaches.insert(idx, Beach(beaches(idx).site), Beach(site))
+    }
+  }
+
+  def beachProjections(directrix: Double): Seq[Double] = {
+    if (beaches.isEmpty) return Seq.empty
+    val breakPoints = beaches.zip(beaches.tail).map { case (a, b) => leftBreakPoint(a.site, b.site, directrix) }
+    (Double.NegativeInfinity +: breakPoints :+ Double.PositiveInfinity)(collection.breakOut)
+  }
+
+  def findBeachIdxAtX(x: Double, directrix: Double): Option[Int] = {
+    // TODO: this is slow. use a balanced binary search tree
+    def leftEdgeOf(i: Int): Double = {
+      if (i == 0) Double.NegativeInfinity
+      else leftBreakPoint(beaches(i-1).site, beaches(i).site, directrix)
+    }
+    def rightEdgeOf(i: Int): Double = {
+      if (i == beaches.size - 1) Double.PositiveInfinity
+      else leftBreakPoint(beaches(i).site, beaches(i+1).site, directrix)
+    }
+    beaches.indices.find(i => leftEdgeOf(i) < x && x <= rightEdgeOf(i) )
+  }
+
+  def leftBreakPoint(leftParabola: Vec2, rightParabola: Vec2, directrix: Double): Double = {
+    val Vec2(rfocx, rfocy) = rightParabola
+    val pby2 = rfocy - directrix
+    if (pby2 == 0) return rfocx
+
+    val Vec2(lfocx, lfocy) = leftParabola
+    val plby2 = lfocy - directrix
+    if (plby2 == 0) return lfocx
+
+    val hl = lfocx - rfocx
     val aby2 = 1 / pby2 - 1 / plby2
     val b = hl / plby2
     if (aby2 != 0)
-      (-b + Math.sqrt(b * b - 2 * aby2 * (hl * hl / (-2 * plby2) - lfoc.y + plby2 / 2 + rfoc.y - pby2 / 2))) / aby2 + rfoc.x
+      (-b + math.sqrt(b * b - 2 * aby2 * (hl * hl / (-2 * plby2) - lfocy + plby2 / 2 + rfocy - pby2 / 2))) / aby2 + rfocx
     else
-      (rfoc.x + lfoc.x) / 2
-  }
-
-  def step(): Unit = {
-    // 1. grab the first event, which is either:
-    //   a. a point from `sites`, or
-    //   b. the edge of a circle formed by 3 adjacent open arcs
-    val firstCircle = circles.headOption
-    val firstSite = sortedSites.headOption
-    if (firstCircle.isEmpty && firstSite.isEmpty)
-      return /* done! */
-    if (firstSite.isDefined && (firstCircle.isEmpty || firstSite.get.y < firstCircle.get.y || (firstCircle.get.y == firstCircle.get.y && firstSite.get.x < firstCircle.get.x))) {
-      // hit a site
-      addBeach(sortedSites.dequeue())
-    } else if (firstCircle.isDefined) {
-      //removeBeach(firstCircle.get)
-    }
-    // 2. if it's a site, add a beach here by splitting the arcs under it
-    // 3. if it's a circle, remove the beach associated with the circle
+      (rfocx + lfocx) / 2
   }
 }
