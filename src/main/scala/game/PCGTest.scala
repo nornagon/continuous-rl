@@ -5,7 +5,7 @@ import org.scalajs.dom
 import org.scalajs.dom.{KeyboardEvent, MouseEvent, html}
 import scala.scalajs.js.annotation.JSExport
 import kit.CanvasHelpers._
-import kit.pcg.{LloydRelaxation, Noise, SpacePacking}
+import kit.pcg.{LloydRelaxation, Noise, SpacePacking, SubstrateOptions}
 import kit.cp.Implicits._
 import scala.collection.mutable
 
@@ -512,7 +512,7 @@ object PCGTest {
         }
         if (s.liveSegments.isEmpty || (s.deadSegments.size + s.liveSegments.size) > 400) {
           stop()
-          for (i <- 0 to s.deadSegments.size) {
+          /*for (i <- 0 to s.deadSegments.size) {
             val seg = Rand.oneOf(s.deadSegments: _*)
             val t = Rand.between(0, seg.length / 5).floor * 5
             val pointOnRoad = seg.a + (seg.a -> seg.b).normed * t
@@ -524,11 +524,50 @@ object PCGTest {
                 ctx.polygon(smallerPoly)
               }
             }
-          }
+          }*/
         }
       }
     }, 1/60.0)
     def stop(): Unit = dom.window.clearInterval(ivl)
     ivl
+  }
+
+  def substrateSVG(root: html.Div): Unit = {
+    import scalatags.JsDom.implicits._
+    import scalatags.JsDom.svgTags.{svg, path, g}
+    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, viewBox, transform}
+
+    val bounds = AABB(Vec2(0, 0), Vec2(1100, 850))
+    val s = new kit.pcg.Substrate(
+      Set((Vec2(0, 0), 1d), (Vec2(100, -20), 2d)),
+      SubstrateOptions(
+        chooseNewSegmentPosition = { parent =>
+          val t = Rand.between(0, parent.length)
+          val start = parent.a + (parent.a -> parent.b).normed * t
+          val angle = (parent.a -> parent.b).toAngle + Rand.chooseFrom(-Math.PI/2 -> 1d, Math.PI/2 -> 1d, Rand.angle -> 0.02)
+          (start, angle)
+        }
+      )
+    )
+    while (s.liveSegments.nonEmpty && (s.deadSegments.size + s.liveSegments.size) <= 400)
+      s.step()
+    def render(): Unit = {
+      val e = svg(
+        width := s"${bounds.width / 100.0}in",
+        height := s"${bounds.height / 100.0}in",
+        viewBox := s"0 0 ${bounds.width} ${bounds.height}",
+        g(
+          transform := s"translate(${bounds.width / 2},${bounds.height / 2})",
+          g(
+            s.allSegments.filter(_.length >= 5).map { s =>
+              path(d := s.toSVG, fill := "transparent", stroke := "black")
+            }: _*
+          )
+        )
+      ).render
+      root.innerHTML = ""
+      root.appendChild(e)
+    }
+    render()
   }
 }
