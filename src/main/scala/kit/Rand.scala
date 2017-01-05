@@ -33,6 +33,7 @@ object Rand {
 
   type Distribution[K] = Map[K, Double]
 
+  def chooseFrom[K](distribution: (K, Double)*): K = chooseFrom(Map(distribution: _*))
   def chooseFrom[K](distribution: Distribution[K]): K = {
     val norm = distribution.values.sum
     val r = Math.random() * norm

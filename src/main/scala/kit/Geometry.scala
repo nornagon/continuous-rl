@@ -235,6 +235,10 @@ case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
       a - sideways
     ))
   }
+
+  def toSVG: String = {
+    s"M${a.x},${a.y} L${b.x},${b.y}"
+  }
 }
 
 

@@ -12,6 +12,32 @@ import scala.collection.mutable
 
 @JSExport
 object PCGTest {
+  @JSExport
+  def main(root: html.Div): Unit = {
+    root.innerHTML = ""  // Otherwise workbench update doesn't work properly
+    //substrateSVG(root)
+    //withCanvas(root, substrate)
+    //withCanvas(root, spacePacking)
+    //withCanvas(root, relaxation)
+    //time(root)
+    //stars(root)
+    //boxes(root)
+    //withCanvas(root, noise)
+    //withCanvas(root, particles)
+    //particlesSVG(root)
+    //withCanvas(root, voronoi)
+    voronoiSVG(root)
+  }
+
+  def withCanvas(root: html.Div, f: html.Canvas => Unit): Unit = {
+    val element = dom.document.createElement("canvas").asInstanceOf[html.Canvas]
+    element.width = dom.window.innerWidth.toInt
+    element.height = dom.window.innerHeight.toInt
+    element.style.display = "block"
+    root.appendChild(element)
+    f(element)
+  }
+
   def boxes(root: html.Div): Unit = {
     import scalatags.JsDom.implicits._
     import scalatags.JsDom.svgTags.{svg, path, g}
@@ -162,29 +188,6 @@ object PCGTest {
     render()
   }
 
-  @JSExport
-  def main(root: html.Div): Unit = {
-    root.innerHTML = ""  // Otherwise workbench update doesn't work properly
-    //withCanvas(root, spacePacking)
-    //withCanvas(root, relaxation)
-    //time(root)
-    //stars(root)
-    //boxes(root)
-    //withCanvas(root, noise)
-    //withCanvas(root, particles)
-    //particlesSVG(root)
-    withCanvas(root, voronoi)
-  }
-
-  def withCanvas(root: html.Div, f: html.Canvas => Unit): Unit = {
-    val element = dom.document.createElement("canvas").asInstanceOf[html.Canvas]
-    element.width = dom.window.innerWidth.toInt
-    element.height = dom.window.innerHeight.toInt
-    element.style.display = "block"
-    root.appendChild(element)
-    f(element)
-  }
-
   case class Particle(var p: Vec2, var v: Vec2, maxTrailLength: Double = 200) {
     val trail = mutable.Buffer[Vec2](p)
     def step(dt: Double, field: Vec2 => Vec2): Unit = {
@@ -250,14 +253,42 @@ object PCGTest {
     root.appendChild(e)
   }
 
+  def voronoiSVG(root: html.Div): Unit = {
+    import scalatags.JsDom.implicits._
+    import scalatags.JsDom.svgTags.{svg, path, g}
+    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, transform, viewBox, xmlns}
+    val page = AABB(Vec2(0, 0), Vec2(1200, 900))
+    val margins = page.shrink(100)
+    val r = new scala.util.Random(44)
+    val points = for (i <- 1 to 200) yield Vec2(r.nextDouble() * page.width, r.nextDouble() * page.height)
+    val v = new Voronoi(points)
+    while (v.nextEventY.isDefined) v.step()
+    val e = svg(
+      xmlns := "http://www.w3.org/2000/svg",
+      width := s"${page.width / 100.0}in",
+      height := s"${page.height / 100.0}in",
+      viewBox := s"0 0 ${page.width} ${page.height}",
+      g(
+        (for ((_, e) <- v.edges; if e.start != null && e.end != null; seg <- margins.truncate(Segment2(e.start, e.end))) yield {
+          path(d := seg.toSVG, fill := "transparent", stroke := "black")
+        })(collection.breakOut): _*
+      )
+    ).render
+    root.innerHTML = ""
+    root.appendChild(e)
+  }
+
   def voronoi(canvas: html.Canvas): Unit = {
     val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
     val width = 512d
     val height = 512d
     val margin = 32d
     val r = new scala.util.Random(44)
-    val points = for (i <- 1 to 10) yield Vec2(r.nextDouble() * width + margin, r.nextDouble() * width + margin)
+    val points = for (i <- 1 to 200) yield Vec2(r.nextDouble() * width + margin, r.nextDouble() * height + margin)
     //val points = Seq(Vec2(50, 30), Vec2(70, 60), Vec2(80, 80))
+    /*val points = Circle2(Vec2(width, height) * 0.5 + Vec2(margin, margin), (width min height) * 0.4).toPolygon(70).points.map { p =>
+      p + Vec2(r.nextDouble(), r.nextDouble())
+    }*/
 
     var mousePos: Option[Vec2] = None
     dom.window.onmousemove = (e: MouseEvent) => {
@@ -266,14 +297,30 @@ object PCGTest {
     }
 
     def draw(): Unit = {
-      val relevantMousePos = mousePos.filter(AABB(0, 0, width + margin * 2, height + margin * 2).contains(_))
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      val relevantMousePos = mousePos.filter(AABB(0, 0, width + margin * 2, Double.PositiveInfinity).contains(_))
       val directrix = relevantMousePos.map(_.y).getOrElse(0.0)
       val v = new Voronoi(points)
-      while (v.nextEventY.exists(_ < directrix)) v.step()
-      println(s"num circles: ${v.circles().size}")
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      var prevY = 0.0d
+      while (v.nextEventY.exists(_ < directrix)) {
+        val d = v.nextEventY.get
+        /*if (v.beaches.nonEmpty)
+          for (dy <- prevY to d by 1; (lb, rb) <- v.beaches.zip(v.beaches.tail)) {
+            val x = v.leftBreakPoint(lb.site, rb.site, dy)
+            val y = 0.5 * ((lb.site.x - x) * (lb.site.x - x) / (lb.site.y - dy) + lb.site.y + dy)
+            ctx.fillStyle = "black"; ctx.fillRect(x, y, 1, 1)
+          }*/
+        prevY = d
+        v.step()
+      }
+      /*if (v.beaches.nonEmpty)
+        for (dy <- prevY to directrix by 1; (lb, rb) <- v.beaches.zip(v.beaches.tail)) {
+          val x = v.leftBreakPoint(lb.site, rb.site, dy)
+          val y = 0.5 * ((lb.site.x - x) * (lb.site.x - x) / (lb.site.y - dy) + lb.site.y + dy)
+          ctx.fillStyle = "black"; ctx.fillRect(x, y, 1, 1)
+        }*/
       for (p <- points) {
-        ctx.fillPath("blue") { ctx.circle(p, 4) }
+        ctx.fillPath("blue") { ctx.circle(p, 1) }
       }
       val colors = 0 to 10 map (i => s"hsl(${i/10.0*360}, ${if (i%2==0) 50 else 100}%, 50%)")
       val circledBeaches = v.circles().map(_._1)
@@ -296,6 +343,18 @@ object PCGTest {
       }
       for ((_, c) <- v.circles()) {
         ctx.strokePath("black") { ctx.circle(c) }
+      }
+      for ((_, e) <- v.edges) {
+        if (e.start != null && e.end != null)
+          ctx.strokePath("green") { ctx.polyLine(Seq(e.start, e.end)) }
+      }
+      for (vertex <- v.vertices) {
+        ctx.strokePath("red") {
+          ctx.moveTo(vertex + Vec2(-2, -2))
+          ctx.lineTo(vertex + Vec2(2, 2))
+          ctx.moveTo(vertex + Vec2(2, -2))
+          ctx.lineTo(vertex + Vec2(-2, 2))
+        }
       }
       ctx.strokePath("red") { ctx.moveTo(0, directrix + 0.5); ctx.lineTo(width + margin * 2, directrix + 0.5) }
       for ((Seq(lx_, rx_), i) <- v.beachProjections(directrix).sliding(2).filter(_.size == 2).zipWithIndex) {
