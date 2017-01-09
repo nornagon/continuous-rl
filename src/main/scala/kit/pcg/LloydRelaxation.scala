@@ -1,6 +1,6 @@
 package kit.pcg
 
-import kit.{AABB, Rand, Vec2}
+import kit.{AABB, Rand, Vec2, Voronoi}
 
 
 object LloydRelaxation {
@@ -30,5 +30,13 @@ object LloydRelaxation {
     groups.values.map { ss =>
       ss.reduce(_ + _) / ss.size
     } ++ (points.toSet -- groups.keySet)
+  }
+
+  def voronoiRelax(bounds: AABB, points: Iterable[Vec2]): Iterable[Vec2] = {
+    /*val v = new Voronoi(points.toSeq)
+    while (!v.step()) ()
+    for ((_, cell) <- v.cells()) yield cell.centroid*/
+    val polygons = Voronoi.computeD3(points)
+    for (p <- polygons) yield p.centroid
   }
 }

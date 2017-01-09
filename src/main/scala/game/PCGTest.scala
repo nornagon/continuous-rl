@@ -8,6 +8,7 @@ import kit.CanvasHelpers._
 import kit.pcg.{LloydRelaxation, Noise, SpacePacking, SubstrateOptions}
 import kit.cp.Implicits._
 import scala.collection.mutable
+import kit.RandomImplicits._
 
 
 @JSExport
@@ -27,6 +28,7 @@ object PCGTest {
     //particlesSVG(root)
     //withCanvas(root, voronoi)
     voronoiSVG(root)
+    //arcs(root)
   }
 
   def withCanvas(root: html.Div, f: html.Canvas => Unit): Unit = {
@@ -36,6 +38,86 @@ object PCGTest {
     element.style.display = "block"
     root.appendChild(element)
     f(element)
+  }
+
+  def arcs(root: html.Div): Unit = {
+    import scalatags.JsDom.implicits._
+    import scalatags.JsDom.svgTags.{svg, path, g}
+    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, xmlns, viewBox, transform, attr}
+
+    val page = AABB(Vec2(0, 0), Vec2(1200, 900))
+    val margins = page.shrink(100)
+    val seed = scala.util.Random.nextInt
+    val r = new scala.util.Random(seed)
+
+    val cellSize: Double = 100
+    val numCellsX: Int = math.floor(margins.width / cellSize).toInt
+    val numCellsY: Int = math.floor(margins.height / cellSize).toInt
+
+    val largeArc = Arc2(
+      Vec2(0, 0),
+      cellSize,
+      cellSize,
+      0,
+      0,
+      Math.PI / 2
+    ).scale(0.7).translate(-Vec2(cellSize, cellSize) / 2)
+    val smallArc = Arc2(
+      Vec2(0, 0),
+      cellSize,
+      cellSize,
+      0,
+      0,
+      Math.PI / 2
+    ).scale(0.3).translate(-Vec2(cellSize, cellSize) / 2)
+    val grid = new pcg.WaveFunctionCollapse().wfc(numCellsX, numCellsY)
+    val paths = (for (x <- 0 until numCellsX; y <- 0 until numCellsY) yield {
+      //val angle = r.between(0, 4) * Math.PI / 2
+      if (grid((x, y)) == " ") {
+        Seq()
+      } else {
+      val angle = (grid((x, y)) match {
+        case "┘" => 0
+        case "┐" => 1
+        case "┌" => 2
+        case "└" => 3
+      }) * Math.PI / 2
+      val cellCenter = Vec2(cellSize * (x + 0.5), cellSize * (y + 0.5))
+      val arc = largeArc.rotateAboutOrigin(angle).translate(cellCenter)
+      val arc2 = smallArc.rotateAboutOrigin(angle).translate(cellCenter)
+      val nRays = 5
+      val rays = arc.toPoints(nRays).zip(arc2.toPoints(nRays)).map { case (p1, p2) =>
+        Segment2(p1, p2)
+      }
+      val nJoins = 5
+      val joins = rays.map(_.toPoints(nJoins + r.between(-1, 1))).sliding(2).filter(_.size == 2).flatMap {
+        case Seq(a, b) => a.zip(b.reverse).map { case (p1, p2) => Segment2(p1, p2) }
+      }
+      joins
+      /*Seq(
+        smallArc.rotateAboutOrigin(angle).translate(cellCenter),
+        largeArc.rotateAboutOrigin(angle).translate(cellCenter)
+      )*/
+      }
+    }).flatten.map(_.toSVG)
+
+    val e = svg(
+      xmlns := "http://www.w3.org/2000/svg",
+      width := s"${page.width / 100.0}in",
+      height := s"${page.height / 100.0}in",
+      viewBox := s"0 0 ${page.width} ${page.height}",
+      attr("x-seed") := s"$seed",
+      g(
+        transform := s"translate(${margins.lower.x}, ${margins.lower.y})",
+        g(
+          paths.map { p =>
+            path(d := p, stroke := "black", fill := "transparent")
+          }: _*
+        )
+      )
+    ).render
+    root.innerHTML = ""
+    root.appendChild(e)
   }
 
   def boxes(root: html.Div): Unit = {
@@ -255,23 +337,88 @@ object PCGTest {
 
   def voronoiSVG(root: html.Div): Unit = {
     import scalatags.JsDom.implicits._
-    import scalatags.JsDom.svgTags.{svg, path, g}
-    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, transform, viewBox, xmlns}
+    import scalatags.JsDom.svgTags.{svg, path, g, text}
+    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, transform, viewBox, xmlns, attr}
     val page = AABB(Vec2(0, 0), Vec2(1200, 900))
     val margins = page.shrink(100)
-    val r = new scala.util.Random(44)
-    val points = for (i <- 1 to 200) yield Vec2(r.nextDouble() * page.width, r.nextDouble() * page.height)
-    val v = new Voronoi(points)
-    while (v.nextEventY.isDefined) v.step()
+    val seed = scala.util.Random.nextInt
+    val r = new scala.util.Random(seed)
+
+    //- Definitions -//
+    def randomPoints(n: Int = 200) =
+      for (i <- 1 to n) yield Vec2(r.nextDouble() * page.width, r.nextDouble() * page.height)
+    def cropCircles(relax: Boolean = true) = {
+      val points = randomPoints(2300)
+      val relaxed = if (relax) LloydRelaxation.voronoiRelax(margins, points).toSeq else points
+      relaxed ++ (1 to 5 flatMap { _ =>
+        val radius = r.between(20, 300)
+        Circle2(r.withinAABB(margins), radius).toPolygon((radius * r.between(0.5, 0.7)).round.toInt).points
+      })
+    }
+    def justCircles(numCircles: Int = 19, relax: Boolean = false) = {
+      val points = 1 to numCircles flatMap { _ =>
+        val radius = r.between(60, 300)
+        Circle2(r.withinAABB(margins), radius).toPolygon((radius * r.between(0.4, 0.5)).round.toInt).points
+      }
+      if (relax) LloydRelaxation.voronoiRelax(margins, points)
+      else points
+    }
+    def flower() =
+      (for (i <- 1 to r.between(5, 8)) yield {
+        val jitter = r.between(0, 5)
+        Circle2(margins.center, r.between(4, margins.minDimension / 2)).toPolygon(r.between(2, 80)).points.map { p => p + r.withinCircle(jitter) }
+      }).flatten
+    def hexes() = {
+      val size = 14.0
+      val height = size * 2
+      val vert = height * 0.75
+      val width = math.sqrt(3)/2 * height
+      for (y <- 0 to (margins.height / vert).toInt + 1; x <- 0 to (margins.width / width).toInt + 1) yield margins.lower + Vec2(x * width + (y % 2) * width/2, y * vert)
+    }
+
+    def shiftCells(cells: Seq[Polygon], shiftFactor: Vec2 => Double): Seq[Polygon] = {
+      cells map { c => c.translate(r.withinCircle(shiftFactor(c.centroid))) }
+    }
+    def rotateCells(cells: Seq[Polygon], rotateFactor: Vec2 => Double): Seq[Polygon] = {
+      cells map { c => c.translate(-c.centroid).rotateAroundOrigin(rotateFactor(c.centroid)).translate(c.centroid) }
+    }
+    def shiftCellsOutwards(cells: Seq[Polygon]) = shiftCells(cells, c => math.pow((c -> margins.center).length/200, 2.5))
+    def shiftCellsRightwards(cells: Seq[Polygon]) = shiftCells(cells, c => math.pow(c.x / 400, 2.5))
+    def shiftCellsRandomly(cells: Seq[Polygon]) = shiftCells(cells, c => 5)
+    def rotateCellsRandomly(cells: Seq[Polygon]) = rotateCells(cells, c => r.between(-0.1, 0.1))
+    def rotateCellsOutwardsRandomly(cells: Seq[Polygon]) = rotateCells(cells, c => r.between(-1.0, 1.0) * math.pow((c -> margins.center).length/600, 2.5))
+    def rotateCellsOutwards(cells: Seq[Polygon]) = rotateCells(cells, c => math.pow((c -> margins.center).length/400, 1.2))
+
+    def perturbPoints(points: Seq[Vec2], factor: Vec2 => Double) = points map { p => p + r.withinCircle(factor(p)) }
+    def excludePoints(points: Seq[Vec2], circle: Circle2): Seq[Vec2] = points.filterNot(circle.contains)
+
+    //- Options -//
+    val points = justCircles(relax = true)
+    val useCells = true
+
+    /*val v = new Voronoi(points)
+    while (v.nextEventY.isDefined) v.step()*/
+    //val cells = shiftCellsRightwards(Voronoi.computeD3(points))
+    //val cells = rotateCellsOutwards(Voronoi.computeD3(points))
+    val cells = rotateCellsOutwardsRandomly(Voronoi.computeD3(justCircles(10, relax=false) ++ perturbPoints(hexes(), x => 1 + (margins.center -> x).length/20)))
     val e = svg(
       xmlns := "http://www.w3.org/2000/svg",
       width := s"${page.width / 100.0}in",
       height := s"${page.height / 100.0}in",
       viewBox := s"0 0 ${page.width} ${page.height}",
+      attr("x-seed") := s"$seed",
       g(
-        (for ((_, e) <- v.edges; if e.start != null && e.end != null; seg <- margins.truncate(Segment2(e.start, e.end))) yield {
-          path(d := seg.toSVG, fill := "transparent", stroke := "black")
-        })(collection.breakOut): _*
+        (
+          if (useCells)
+            (for (cell <- cells; if margins.contains(cell); seg <- margins.truncate(cell)) yield {
+              path(d := seg.toSVG, fill := "transparent", stroke := "black")
+            })(collection.breakOut)
+          else
+            ???
+            /*(for ((_, e) <- v.edges; if e.start != null && e.end != null; seg <- margins.truncate(Segment2(e.start, e.end))) yield {
+              path(d := seg.toSVG, fill := "transparent", stroke := "black")
+            })(collection.breakOut)*/
+        ): _*
       )
     ).render
     root.innerHTML = ""

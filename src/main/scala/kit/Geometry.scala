@@ -1,5 +1,7 @@
 package kit
 
+import scala.scalajs.js
+
 
 object Angle {
   /** Returns an angle equivalent to `a` but within the range [-π, π] */
@@ -19,6 +21,8 @@ case class Vec2(x: Double, y: Double) {
   def *(k: Double): Vec2 = Vec2(x * k, y * k)
   def /(k: Double): Vec2 = Vec2(x / k, y / k)
   def unary_-(): Vec2 = Vec2(-x, -y)
+  /** Hadamard product */
+  def o(other: Vec2): Vec2 = Vec2(x * other.x, y * other.y)
 
   def dot(other: Vec2): Double = x * other.x + y * other.y
   def cross(other: Vec2): Double = x * other.y - other.x * y
@@ -172,10 +176,88 @@ case class Circle2(c: Vec2, r: Double) extends Shape2 {
     case o => o intersects this
   }
 
+  def contains(p: Vec2): Boolean = (c -> p).lengthSquared <= r*r
+
   def toPolygon(numPoints: Int, startAngle: Double = 0): Polygon =
     Polygon(Vec2.aroundCircle(numPoints, startAngle).map(_ * r)).translate(c)
 
   def area: Double = Math.PI * r * r
+}
+
+case class Arc2(c: Vec2, rx: Double, ry: Double, rotation: Double, startAngle: Double, sweptAngle: Double) {
+  assert(rx == ry)
+  assert(rotation == 0)
+  // https://www.w3.org/TR/SVG/implnote.html#ArcImplementationNotes
+  def toSVGArc: SVGArc = {
+    val rotate = Mat33.rotate(-rotation)
+    val r = Vec2(rx, ry)
+    val v0 = rotate * (r o Vec2.forAngle(startAngle)) + c
+    val v1 = rotate * (r o Vec2.forAngle(startAngle + sweptAngle)) + c
+    SVGArc(v0, v1, rx, ry, rotation, sweptAngle.abs > Math.PI, sweptAngle > 0)
+  }
+
+  def translate(p: Vec2): Arc2 = copy(c = c + p)
+  def rotateAboutOrigin(angle: Double): Arc2 = {
+    if (c == Vec2(0, 0))
+      copy(startAngle = startAngle + angle)
+    else
+      toSVGArc.rotateAboutOrigin(angle).toArc2
+  }
+  def scale(k: Double) = copy(c = c * k, rx = rx * k, ry = ry * k)
+
+  /** t in [0, 1] */
+  def sample(t: Double): Vec2 = Mat33.rotate(rotation) * (Vec2(rx, ry) o Vec2.forAngle(startAngle + sweptAngle * t)) + c
+  def toPoints(numPoints: Int): Seq[Vec2] = (0 until numPoints) map { i => sample(i/(numPoints - 1).toDouble) }
+
+  def toSVG: String = toSVGArc.toSVG
+  /*def toSVG: String = {
+    val r = Vec2(rx, ry)
+    val start = c + (r o Vec2.forAngle(startAngle))
+    val end = c + (r o Vec2.forAngle(startAngle + sweptAngle))
+    s"M${start.x} ${start.y} A $rx $ry 0 0 1 ${end.x} ${end.y}"
+  }*/
+}
+
+case class SVGArc(start: Vec2, end: Vec2, rx: Double, ry: Double, xRot: Double, largeArc: Boolean, sweep: Boolean) {
+  def translate(p: Vec2): SVGArc = copy(start = start + p, end = end + p)
+  def rotateAbout(p: Vec2, angle: Double): SVGArc = translate(-p).rotateAboutOrigin(angle).translate(p)
+  def rotateAboutOrigin(angle: Double): SVGArc = {
+    val mat = Mat33.rotate(angle)
+    copy(start = mat * start, end = mat * end)
+  }
+  def scale(k: Double) = copy(start = start * k, end = end * k, rx = rx * k, ry = ry * k)
+
+  // https://svgwg.org/svg2-draft/implnote.html#ArcImplementationNotes
+  def toArc2: Arc2 = {
+    val v1p = Mat33.rotate(xRot) * ((start - end) / 2)
+    val sgn = if (largeArc != sweep) 1 else -1
+    //val radiiCheck = Math.pow(v1p.x, 2)/Math.pow(this.rx, 2) + Math.pow(v1p.y, 2)/Math.pow(this.ry, 2)
+    //val rx = if (radiiCheck > 1) math.sqrt(radiiCheck) * this.rx else this.rx
+    //val ry = if (radiiCheck > 1) math.sqrt(radiiCheck) * this.ry else this.ry
+    val radicand = (rx*rx * ry*ry - rx*rx * v1p.y*v1p.y - ry*ry * v1p.x*v1p.x) / (rx*rx * v1p.y*v1p.y + ry*ry * v1p.x*v1p.x)
+    val cp = Vec2(
+      rx*v1p.y / ry,
+      -ry*v1p.x / rx
+    ) * (math.sqrt(radicand max 0) * sgn)
+    val c = Mat33.rotate(-xRot) * cp + (start + end) / 2
+    def angleBetween(u: Vec2, v: Vec2) = { v.toAngle - u.toAngle }
+    val recipRadius = Vec2(1 / rx, 1 / ry)
+    val v = (v1p - cp) o recipRadius
+    val startAngle = angleBetween(Vec2(1, 0), v)
+    val dTheta = angleBetween(v, (-v1p - cp) o recipRadius)
+    val sweptAngle = (
+      if (!sweep && dTheta > 0) dTheta - 2 * Math.PI
+      else if (sweep && dTheta < 0) dTheta + 2 * Math.PI
+      else dTheta
+    ) % (2 * Math.PI)
+    if (c.x.isNaN) js.debugger()
+    if (c.y.isNaN) js.debugger()
+    if (startAngle.isNaN) js.debugger()
+    if (sweptAngle.isNaN) js.debugger()
+    Arc2(c, rx, ry, xRot, startAngle, sweptAngle)
+  }
+
+  def toSVG: String = s"M${start.x} ${start.y} A$rx $ry $xRot ${if (largeArc) 1 else 0} ${if (sweep) 1 else 0} ${end.x} ${end.y}"
 }
 
 /** A segment beginning at `a` and ending at `b`. */
@@ -236,6 +318,9 @@ case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
     ))
   }
 
+  def sample(t: Double) = a.lerp(b, t)
+  def toPoints(numPoints: Int): Seq[Vec2] = (0 until numPoints) map { i => sample(i/(numPoints - 1).toDouble) }
+
   def toSVG: String = {
     s"M${a.x},${a.y} L${b.x},${b.y}"
   }
@@ -270,6 +355,9 @@ case class Polygon(points: Seq[Vec2]) extends Shape2 {
 
   /** A sequence of segments representing the edges of this polygon. */
   def segments = toPolyLine.sliding(2) map { case Seq(a, b) => Segment2(a, b) }
+
+  /** The average of the vertices of this polygon. */
+  def centroid: Vec2 = points.reduce(_ + _) / points.size
 
   override def intersects(other: Shape2): Boolean = other match {
     case seg: Segment2 =>
@@ -326,7 +414,9 @@ case class AABB(lower: Vec2, upper: Vec2) {
 
   def width: Double = upper.x - lower.x
   def height: Double = upper.y - lower.y
-  def maxDimension = Math.max(width, height)
+  def maxDimension: Double = width max height
+  def minDimension: Double = width min height
+  def center: Vec2 = lower + (upper - lower) * 0.5
 
   def toPolygon: Polygon = Polygon(Seq(lower, lower.copy(x = upper.x), upper, lower.copy(y = upper.y)))
 
@@ -358,12 +448,24 @@ case class AABB(lower: Vec2, upper: Vec2) {
     lower.x <= other.upper.x && other.lower.x <= upper.x && lower.y <= other.upper.y && other.lower.y <= upper.y
   }
 
+  def intersects(circle: Circle2): Boolean = {
+    val Circle2(c, r) = circle
+    c.x + r >= lower.x && c.x - r <= upper.x && c.y + r >= lower.y && c.y - r <= upper.y
+  }
+
   /** True if `point` is contained within the AABB.
     *
     * Points exactly on the edge of the box are considered to be within the box.
     */
   def contains(point: Vec2): Boolean =
     point.x >= lower.x && point.x <= upper.x && point.y >= lower.y && point.y <= upper.y
+
+  def contains(circle: Circle2): Boolean = {
+    val Circle2(c, r) = circle
+    c.x - r >= lower.x && c.x + r <= upper.x && c.y - r >= lower.y && c.y + r <= upper.y
+  }
+
+  def contains(polygon: Polygon): Boolean = polygon.points.forall(contains(_))
 
   /** Returns the largest subsegment that's completely contained within the AABB, if one exists. */
   def truncate(segment: Segment2): Option[Segment2] = {
@@ -377,6 +479,15 @@ case class AABB(lower: Vec2, upper: Vec2) {
       Some(segment.copy(a = intersection(segment).getOrElse(segment.a)))
     else
       None
+  }
+
+  def truncate(polygon: Polygon): Seq[Segment2] = polygon.segments.flatMap(truncate(_)).toSeq
+  def truncate(circle: Circle2): Option[Either[Circle2, Arc2]] = {
+    if (!intersects(circle)) None
+    else if (contains(circle)) Some(Left(circle))
+    else {
+      ???
+    }
   }
 
   /** Returns the closest point to `point` that's inside the AABB. */

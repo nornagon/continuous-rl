@@ -1,7 +1,27 @@
 package kit
 
 import scala.collection.mutable
+import scala.scalajs.js
+import scala.scalajs.js.annotation.JSName
 
+object Voronoi {
+  import js.native
+  @JSName("d3")
+  @native
+  object d3 extends js.Object {
+    def voronoi(): js.Dynamic = native
+  }
+
+  def computeD3(sites: Iterable[Vec2]): Seq[Polygon] = {
+    val jsSites: js.Array[js.Array[Double]] = sites.map(v => js.Array(v.x, v.y))(collection.breakOut)
+    val voronoi = d3.voronoi()
+    val diagram = voronoi(jsSites)
+    val polygons: js.Array[js.Array[js.Array[Double]]] = diagram.polygons().asInstanceOf[js.Array[js.Array[js.Array[Double]]]]
+    for (p <- polygons; if !p.contains(null)) yield {
+      Polygon(p.map { arr => Vec2(arr(0), arr(1)) })
+    }
+  }
+}
 
 class Voronoi(sites: Seq[Vec2]) {
   private val lexicographicYX = new Ordering[Vec2] {
@@ -74,6 +94,7 @@ class Voronoi(sites: Seq[Vec2]) {
   }
 
   def circles(): Iterator[(Beach, Circle2)] = {
+    // TODO: rather than recomputing all the circles each time, add/remove them during sweep
     for {
       Seq(l, m, r) <- beaches.sliding(3).filter(_.size == 3)
       if l.site != r.site
@@ -111,6 +132,26 @@ class Voronoi(sites: Seq[Vec2]) {
     if (beaches.isEmpty) return Seq.empty
     val breakPoints = beaches.zip(beaches.tail).map { case (a, b) => leftBreakPoint(a.site, b.site, directrix) }
     (Double.NegativeInfinity +: breakPoints :+ Double.PositiveInfinity)(collection.breakOut)
+  }
+
+  def completeEdges = for ((k, e) <- edges; if e.start != null && e.end != null) yield k -> e
+
+  def cells(): Map[Vec2, Polygon] = {
+    val edgesBySite = mutable.Map[Vec2, Map[Vec2, Vec2]]().withDefaultValue(Map())
+    for (((a, b), Edge(start, end)) <- completeEdges) {
+      edgesBySite(a) += ((start, end))
+      edgesBySite(b) += ((end, start))
+    }
+    (for ((site, edges) <- edgesBySite; if edges.values.forall(end => edges.contains(end))) yield {
+      val first = edges.keys.head
+      var p = first
+      val points = for (_ <- 1 to edges.size) yield {
+        val x = p
+        p = edges(p)
+        x
+      }
+      site -> Polygon(points)
+    })(collection.breakOut)
   }
 
   /**

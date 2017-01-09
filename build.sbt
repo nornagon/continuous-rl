@@ -22,3 +22,4 @@ bootSnippet := """game.Main().main(document.getElementById("appRoot"));"""
 refreshBrowsers <<= refreshBrowsers.triggeredBy(fastOptJS in Compile)
 
 jsDependencies += ProvidedJS / "cp.js"
+jsDependencies += ProvidedJS / "d3-voronoi.js"
