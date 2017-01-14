@@ -16,6 +16,7 @@ object PCGTest {
   @JSExport
   def main(root: html.Div): Unit = {
     root.innerHTML = ""  // Otherwise workbench update doesn't work properly
+    interlockingGrids(root)
     //substrateSVG(root)
     //withCanvas(root, substrate)
     //withCanvas(root, spacePacking)
@@ -27,7 +28,7 @@ object PCGTest {
     //withCanvas(root, particles)
     //particlesSVG(root)
     //withCanvas(root, voronoi)
-    voronoiSVG(root)
+    //voronoiSVG(root)
     //arcs(root)
   }
 
@@ -355,10 +356,10 @@ object PCGTest {
         Circle2(r.withinAABB(margins), radius).toPolygon((radius * r.between(0.5, 0.7)).round.toInt).points
       })
     }
-    def justCircles(numCircles: Int = 19, relax: Boolean = false) = {
+    def justCircles(numCircles: Int = 19, relax: Boolean = false, density: Double = 0.5) = {
       val points = 1 to numCircles flatMap { _ =>
         val radius = r.between(60, 300)
-        Circle2(r.withinAABB(margins), radius).toPolygon((radius * r.between(0.4, 0.5)).round.toInt).points
+        Circle2(r.withinAABB(margins), radius).toPolygon((radius * (density * r.between(0.9, 1.1))).round.toInt).points
       }
       if (relax) LloydRelaxation.voronoiRelax(margins, points)
       else points
@@ -368,8 +369,7 @@ object PCGTest {
         val jitter = r.between(0, 5)
         Circle2(margins.center, r.between(4, margins.minDimension / 2)).toPolygon(r.between(2, 80)).points.map { p => p + r.withinCircle(jitter) }
       }).flatten
-    def hexes() = {
-      val size = 14.0
+    def hexes(size: Double = 14.0) = {
       val height = size * 2
       val vert = height * 0.75
       val width = math.sqrt(3)/2 * height
@@ -400,7 +400,7 @@ object PCGTest {
     while (v.nextEventY.isDefined) v.step()*/
     //val cells = shiftCellsRightwards(Voronoi.computeD3(points))
     //val cells = rotateCellsOutwards(Voronoi.computeD3(points))
-    val cells = rotateCellsOutwardsRandomly(Voronoi.computeD3(justCircles(10, relax=false) ++ perturbPoints(hexes(), x => 1 + (margins.center -> x).length/20)))
+    val cells = rotateCellsOutwardsRandomly(Voronoi.computeD3(justCircles(10, relax=false, density=0.4) ++ perturbPoints(hexes(20), x => 1 + (margins.center -> x).length/20)))
     val e = svg(
       xmlns := "http://www.w3.org/2000/svg",
       width := s"${page.width / 100.0}in",
@@ -682,31 +682,41 @@ object PCGTest {
   def substrateSVG(root: html.Div): Unit = {
     import scalatags.JsDom.implicits._
     import scalatags.JsDom.svgTags.{svg, path, g}
-    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, viewBox, transform}
+    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, viewBox, transform, xmlns}
 
-    val bounds = AABB(Vec2(0, 0), Vec2(1100, 850))
+    val page = AABB(Vec2(0, 0), Vec2(1200, 900))
+    val margins = page.shrink(100)
     val s = new kit.pcg.Substrate(
-      Set((Vec2(0, 0), 1d), (Vec2(100, -20), 2d)),
+      //sources = Set((Vec2(0, 0), 1d), (Vec2(100, -20), 2d)),
+      sources = ((1 to Rand.between(3, 7)) map { _ => (Rand.withinCircle(margins.minDimension / 2), Rand.angle) }).toSet,
       SubstrateOptions(
         chooseNewSegmentPosition = { parent =>
           val t = Rand.between(0, parent.length)
           val start = parent.a + (parent.a -> parent.b).normed * t
-          val angle = (parent.a -> parent.b).toAngle + Rand.chooseFrom(-Math.PI/2 -> 1d, Math.PI/2 -> 1d, Rand.angle -> 0.02)
+          val angle = (parent.a -> parent.b).toAngle + Rand.chooseFrom(-Math.PI/2 -> 1d, Math.PI/2 -> 1d, Rand.angle -> 10.09)
           (start, angle)
-        }
+        },
+        maxRadius = margins.minDimension / 2,
+        changeDirectionChance = 0.0,
+        //changeDirectionAmount = 0.9,
+        changeDirectionMinSegLength = 200
+        //maxSegmentLength = 100
       )
     )
-    while (s.liveSegments.nonEmpty && (s.deadSegments.size + s.liveSegments.size) <= 400)
+    //s.deadSegments.append(Segment2(Vec2.forAngle(0) * margins.minDimension / 2, Vec2.forAngle(Math.PI) * margins.minDimension / 2))
+    //s.deadSegments.append(Segment2(Vec2.forAngle(0.5) * margins.minDimension / 2, Vec2.forAngle(Math.PI+0.5) * margins.minDimension / 2))
+    while (s.liveSegments.nonEmpty && (s.deadSegments.size + s.liveSegments.size) <= 900)
       s.step()
     def render(): Unit = {
       val e = svg(
-        width := s"${bounds.width / 100.0}in",
-        height := s"${bounds.height / 100.0}in",
-        viewBox := s"0 0 ${bounds.width} ${bounds.height}",
+        xmlns := "http://www.w3.org/2000/svg",
+        width := s"${page.width / 100.0}in",
+        height := s"${page.height / 100.0}in",
+        viewBox := s"0 0 ${page.width} ${page.height}",
         g(
-          transform := s"translate(${bounds.width / 2},${bounds.height / 2})",
+          //transform := s"translate(${page.width / 2},${page.height / 2})",
           g(
-            s.allSegments.filter(_.length >= 5).map { s =>
+            s.allSegments.filter(_.length >= 5).map(_.translate(Vec2(page.width/2, page.height/2))).flatMap(margins.truncate(_)).map { s =>
               path(d := s.toSVG, fill := "transparent", stroke := "black")
             }: _*
           )
@@ -716,5 +726,50 @@ object PCGTest {
       root.appendChild(e)
     }
     render()
+  }
+
+  def interlockingGrids(root: html.Div): Unit = {
+    import scalatags.JsDom.implicits._
+    import scalatags.JsDom.svgTags.{svg, path, g, text}
+    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, transform, viewBox, xmlns, attr}
+    val page = AABB(Vec2(0, 0), Vec2(1200, 900))
+    val margins = page.shrink(100)
+    val seed = scala.util.Random.nextInt
+    val r = new scala.util.Random(seed)
+
+    val cellSize = 200
+    val numCellsX = (margins.width / cellSize).floor.toInt
+    val numCellsY = (margins.height / cellSize).floor.toInt
+    val spacing = 2.0
+    val numSegs = (cellSize / spacing).floor.toInt
+    val segs = (-numSegs/2-25 to numSegs/2+25) map { i => Segment2(Vec2(-cellSize, i*spacing), Vec2(cellSize, i*spacing)) }
+    /*val cells = for (y <- 0 until numCellsY; x <- 0 until numCellsX) yield {
+      AABB(x * cellSize, y * cellSize, (x + 1) * cellSize, (y + 1) * cellSize).translate(margins.lower)
+    }*/
+    val cells = Seq(AABB(margins.center - Vec2(cellSize/2, cellSize/2), margins.center + Vec2(cellSize/2, cellSize/2)))
+    val segments = (for (cell <- cells) yield {
+      //val cell = AABB(x * cellSize, y * cellSize, (x + 1) * cellSize, (y + 1) * cellSize).translate(margins.lower)
+      (for (i <- 1 to 1) yield {
+        val mat = Mat33.rotate(r.angle)
+        val rotatedSegs = segs.map { s => Segment2(mat * s.a + cell.center, mat * s.b + cell.center) }
+        val truncatedSegs = rotatedSegs.flatMap(cell.truncate(_))
+        truncatedSegs // ++ cell.toPolygon.segments
+      }).flatten
+    }).flatten
+
+    val e = svg(
+      xmlns := "http://www.w3.org/2000/svg",
+      width := s"${page.width / 100.0}in",
+      height := s"${page.height / 100.0}in",
+      viewBox := s"0 0 ${page.width} ${page.height}",
+      attr("x-seed") := s"$seed",
+      g(
+        (for (shape <- segments; s = shape) yield { //s <- margins.truncate(shape)) yield {
+          path(d := s.toSVG, fill := "transparent", stroke := "black")
+        })(collection.breakOut): _*
+      )
+    ).render
+    root.innerHTML = ""
+    root.appendChild(e)
   }
 }

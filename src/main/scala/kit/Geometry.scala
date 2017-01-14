@@ -262,6 +262,10 @@ case class SVGArc(start: Vec2, end: Vec2, rx: Double, ry: Double, xRot: Double, 
 
 /** A segment beginning at `a` and ending at `b`. */
 case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
+  def reverse: Segment2 = Segment2(b, a)
+
+  def translate(v: Vec2): Segment2 = Segment2(a + v, b + v)
+
   override def intersects(other: Shape2): Boolean = other match {
     case c: Circle2 =>
       (closestPointTo(c.c) - c.c).length <= c.r
@@ -437,11 +441,30 @@ case class AABB(lower: Vec2, upper: Vec2) {
     *         <br>`Some(p)` where `p` is contained by the box otherwise.
     */
   def intersection(seg: Segment2): Option[Vec2] = {
-    seg.intersection(leftEdge)
-      .orElse(seg.intersection(topEdge))
-      .orElse(seg.intersection(rightEdge))
-      .orElse(seg.intersection(bottomEdge))
-      .map(clip)
+    val a = seg.a
+    val delta = a -> seg.b
+    val p = Seq(-delta.x, delta.x, -delta.y, delta.y)
+    val q = Seq(a.x - lower.x, upper.x - a.x, a.y - lower.y, upper.y - a.y)
+    var u1 = Double.NegativeInfinity
+    var u2 = Double.PositiveInfinity
+
+    for (i <- 0 until 4) {
+      if (p(i) == 0) {
+        if (q(i) < 0)
+          return None
+      } else {
+        val t = q(i) / p(i)
+        if (p(i) < 0 && u1 < t)
+          u1 = t
+        else if (p(i) > 0 && u2 > t)
+          u2 = t
+      }
+    }
+
+    if (u1 > u2 || u1 > 1 || u1 < 0)
+      return None
+
+    Some(a + delta * u1)
   }
 
   def intersects(other: AABB): Boolean = {
@@ -469,6 +492,12 @@ case class AABB(lower: Vec2, upper: Vec2) {
 
   /** Returns the largest subsegment that's completely contained within the AABB, if one exists. */
   def truncate(segment: Segment2): Option[Segment2] = {
+    val forwards = intersection(segment)
+    val backwards = intersection(segment.reverse)
+    if (forwards.isEmpty || backwards.isEmpty)
+      return None
+    else
+      return Some(Segment2(forwards.get, backwards.get))
     val aInside = contains(segment.a)
     val bInside = contains(segment.b)
     if (aInside && bInside)
@@ -498,4 +527,6 @@ case class AABB(lower: Vec2, upper: Vec2) {
 
   def expand(k: Double): AABB = AABB(lower - Vec2(k, k), upper + Vec2(k, k))
   def shrink(k: Double): AABB = AABB(lower + Vec2(k, k), upper - Vec2(k, k))
+
+  def translate(v: Vec2): AABB = AABB(lower + v, upper + v)
 }

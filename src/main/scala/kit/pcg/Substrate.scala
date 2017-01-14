@@ -23,7 +23,7 @@ case class SubstrateOptions(
 
 class Substrate(
   sources: Set[(Vec2, Double)],
-  substrateOptions: SubstrateOptions = SubstrateOptions()
+  val options: SubstrateOptions = SubstrateOptions()
 ) {
   val sourceSegments = sources.map { case (start, angle) => Segment2(start, start + Vec2.forAngle(angle)) }
   val deadSegments = mutable.Buffer.empty[Segment2]
@@ -33,8 +33,8 @@ class Substrate(
 
   def makeNewSegment(): Segment2 = {
     val parent = Rand.chooseFrom(allSegments.map(seg => seg -> seg.length).toMap)
-    val (start, angle) = substrateOptions.chooseNewSegmentPosition(parent)
-    Segment2(start + Vec2.forAngle(angle), start + Vec2.forAngle(angle) * 2)
+    val (start, angle) = options.chooseNewSegmentPosition(parent)
+    Segment2(start, start + Vec2.forAngle(angle))
   }
 
   def step(): Unit = {
@@ -43,23 +43,23 @@ class Substrate(
       val seg = liveSegments(i)
       val newSeg = seg.copy(b = seg.b + (seg.a -> seg.b).normed)
       liveSegments(i) = newSeg
-      if (liveSegments(i).b.length > substrateOptions.maxRadius || liveSegments(i).length > substrateOptions.maxSegmentLength)
+      if (newSeg.b.length > options.maxRadius || newSeg.length > options.maxSegmentLength)
       //if (Math.random() > Math.pow(0.99998, liveSegments(i).length))
         died += i
-      else if ((allSegments filter (newSeg ne _)).exists(seg intersects _)) {
+      else if ((allSegments filter (newSeg ne _)).exists(seg.copy(a = seg.a + (seg.a -> seg.b).normed) intersects _)) {
         liveSegments(i) = seg
         died += i
-      } else if (Math.random() < substrateOptions.changeDirectionChance && seg.b.length > substrateOptions.changeDirectionMinSegLength) {
+      } else if (Math.random() < options.changeDirectionChance && seg.b.length > options.changeDirectionMinSegLength) {
         deadSegments.append(newSeg.copy(b = newSeg.b + (newSeg.b -> newSeg.a).normed * 0.1))
         liveSegments(i) = Segment2(
           a = newSeg.b,
-          b = newSeg.b + Vec2.forAngle((newSeg.a -> newSeg.b).toAngle + Rand.between(-substrateOptions.changeDirectionAmount, substrateOptions.changeDirectionAmount))
+          b = newSeg.b + Vec2.forAngle((newSeg.a -> newSeg.b).toAngle + Rand.between(-1.0, 1.0) * options.changeDirectionAmount)
         )
-      } else if (Math.random() < substrateOptions.rightAngleChance && newSeg.length > substrateOptions.rightAngleMinSegLength) {
+      } else if (Math.random() < options.rightAngleChance && newSeg.length > options.rightAngleMinSegLength) {
         deadSegments.append(newSeg.copy(b = newSeg.b + (newSeg.b -> newSeg.a).normed * 0.1))
         liveSegments(i) = Segment2(
           a = newSeg.b,
-          b = newSeg.b + Vec2.forAngle((newSeg.a -> newSeg.b).toAngle + Rand.oneOf(-Math.PI/2, Math.PI/2) + Rand.between(-substrateOptions.rightAngleNoise, substrateOptions.rightAngleNoise))
+          b = newSeg.b + Vec2.forAngle((newSeg.a -> newSeg.b).toAngle + Rand.oneOf(-Math.PI/2, Math.PI/2) + Rand.between(-options.rightAngleNoise, options.rightAngleNoise))
         )
       }
     }
