@@ -11,7 +11,7 @@ version := "0.1-SNAPSHOT"
 scalaVersion := "2.11.7"
 
 libraryDependencies ++= Seq(
-  "org.scala-js" %%% "scalajs-dom" % "0.9.0",
+  "org.scala-js" %%% "scalajs-dom" % "0.9.1",
   "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
   "com.lihaoyi" %%% "upickle" % "0.4.3",
   "com.lihaoyi" %%% "scalatags" % "0.6.1"
@@ -23,3 +23,5 @@ refreshBrowsers <<= refreshBrowsers.triggeredBy(fastOptJS in Compile)
 
 jsDependencies += ProvidedJS / "cp.js"
 jsDependencies += ProvidedJS / "d3-voronoi.js"
+jsDependencies += ProvidedJS / "dat.gui.js"
+jsDependencies += ProvidedJS / "quicksettings.min.js"

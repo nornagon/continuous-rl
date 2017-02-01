@@ -169,6 +169,10 @@ trait Shape2 {
 
 /** A circle of radius `r` centered at `c`. */
 case class Circle2(c: Vec2, r: Double) extends Shape2 {
+  def toSVG: String = {
+    s"M ${c.x} ${c.y} m ${-r} 0 a $r,$r 0 1,1 ${r*2},0 a $r,$r 0 1,1 ${-r*2},0"
+  }
+
   def boundingBox = AABB(c - Vec2(r, r), c + Vec2(r, r))
 
   override def intersects(other: Shape2): Boolean = other match {
@@ -441,6 +445,7 @@ case class AABB(lower: Vec2, upper: Vec2) {
     *         <br>`Some(p)` where `p` is contained by the box otherwise.
     */
   def intersection(seg: Segment2): Option[Vec2] = {
+    // Liang-Barsky
     val a = seg.a
     val delta = a -> seg.b
     val p = Seq(-delta.x, delta.x, -delta.y, delta.y)
@@ -490,32 +495,28 @@ case class AABB(lower: Vec2, upper: Vec2) {
 
   def contains(polygon: Polygon): Boolean = polygon.points.forall(contains(_))
 
+  def contains(seg: Segment2): Boolean = contains(seg.a) && contains(seg.b)
+
+
   /** Returns the largest subsegment that's completely contained within the AABB, if one exists. */
   def truncate(segment: Segment2): Option[Segment2] = {
+    if (contains(segment.a) && contains(segment.b)) return Some(segment)
+    if (contains(segment.a) && !contains(segment.b)) return Some(Segment2(segment.a, intersection(segment.reverse).get))
+    if (contains(segment.b) && !contains(segment.a)) return Some(Segment2(intersection(segment).get, segment.b))
     val forwards = intersection(segment)
     val backwards = intersection(segment.reverse)
     if (forwards.isEmpty || backwards.isEmpty)
       return None
     else
       return Some(Segment2(forwards.get, backwards.get))
-    val aInside = contains(segment.a)
-    val bInside = contains(segment.b)
-    if (aInside && bInside)
-      Some(segment)
-    else if (aInside)
-      Some(segment.copy(b = intersection(segment).getOrElse(segment.b)))
-    else if (bInside)
-      Some(segment.copy(a = intersection(segment).getOrElse(segment.a)))
-    else
-      None
   }
 
   def truncate(polygon: Polygon): Seq[Segment2] = polygon.segments.flatMap(truncate(_)).toSeq
-  def truncate(circle: Circle2): Option[Either[Circle2, Arc2]] = {
+  def truncate(circle: Circle2): Option[Either[Circle2, Seq[Arc2]]] = {
     if (!intersects(circle)) None
     else if (contains(circle)) Some(Left(circle))
     else {
-      ???
+      Some(Right(Seq.empty))
     }
   }
 

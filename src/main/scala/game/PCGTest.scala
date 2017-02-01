@@ -3,34 +3,86 @@ package game
 import kit._
 import org.scalajs.dom
 import org.scalajs.dom.{KeyboardEvent, MouseEvent, html}
-import scala.scalajs.js.annotation.JSExport
+
+import scala.scalajs.js.annotation.{JSExport, JSExportAll, ScalaJSDefined}
 import kit.CanvasHelpers._
 import kit.pcg.{LloydRelaxation, Noise, SpacePacking, SubstrateOptions}
 import kit.cp.Implicits._
+
 import scala.collection.mutable
 import kit.RandomImplicits._
+import org.scalajs.dom.ext.Ajax
+import org.scalajs.dom.raw.SVGPathElement
 
+import scala.scalajs.js
+
+
+object qs {
+  import js.native
+  import js.annotation.JSName
+  @JSName("QuickSettings")
+  @native
+  object QuickSettings extends js.Object {
+    def create(x: Int, y: Int, panelTitle: String): QuickSettings = native
+  }
+
+  @JSName("QuickSettings")
+  @native
+  class QuickSettings extends js.Object {
+    def addBoolean(title: String, value: Boolean, callback: js.Function1[Boolean, Unit]): Unit = native
+    def addButton(title: String, callback: js.Function0[Unit]): Unit = native
+    def addNumber(title: String, min: Double, max: Double, value: Double, step: Double, callback: js.Function1[Double, Unit]): Unit = native
+    def addRange(title: String, min: Double, max: Double, value: Double, step: Double, callback: js.Function1[Double, Unit]): Unit = native
+    def destroy(): Unit = native
+
+    def getValue(title: String): js.Any = native
+
+    def setDraggable(draggable: Boolean): Unit = native
+    def setCollapsible(collapsible: Boolean): Unit = native
+    def collapse(): Unit = native
+    def expand(): Unit = native
+    def show(): Unit = native
+    def hide(): Unit = native
+  }
+}
 
 @JSExport
 object PCGTest {
+  def timed[T](label: String)(f: => T): T = {
+    val start = dom.window.performance.now()
+    val ret = f
+    val end = dom.window.performance.now()
+    val dur = end - start
+    println(s"$label took $dur ms")
+    ret
+  }
+
   @JSExport
   def main(root: html.Div): Unit = {
     root.innerHTML = ""  // Otherwise workbench update doesn't work properly
-    interlockingGrids(root)
-    //substrateSVG(root)
-    //withCanvas(root, substrate)
-    //withCanvas(root, spacePacking)
-    //withCanvas(root, relaxation)
-    //time(root)
-    //stars(root)
-    //boxes(root)
-    //withCanvas(root, noise)
-    //withCanvas(root, particles)
-    //particlesSVG(root)
-    //withCanvas(root, voronoi)
-    //voronoiSVG(root)
-    //arcs(root)
+    timed("root") {
+      circles(root)
+      //text(root)
+      //interlockingGrids(root)
+      //substrateSVG(root)
+      //withCanvas(root, substrate)
+      //withCanvas(root, spacePacking)
+      //withCanvas(root, relaxation)
+      //time(root)
+      //stars(root)
+      //boxes(root)
+      //withCanvas(root, noise)
+      //withCanvas(root, particles)
+      //particlesSVG(root)
+      //withCanvas(root, voronoi)
+      //voronoiSVG(root)
+      //arcs(root)
+      //waves(root)
+    }
   }
+
+  val page = AABB(Vec2(0, 0), Vec2(1200, 900))
+  //val page = AABB(Vec2(0, 0), Vec2(1000, 700))
 
   def withCanvas(root: html.Div, f: html.Canvas => Unit): Unit = {
     val element = dom.document.createElement("canvas").asInstanceOf[html.Canvas]
@@ -41,15 +93,117 @@ object PCGTest {
     f(element)
   }
 
+  val seed = scala.util.Random.nextInt
+  val r = new scala.util.Random(seed)
+
+  def randomlyConnect(points: Seq[Vec2], factor: Double): Seq[Segment2] =
+    for (a <- points; b <- points; if a != b; if r.nextDouble() < factor) yield Segment2(a, b)
+
+  def circles(root: html.Div): Unit = {
+    import scalatags.JsDom.implicits._
+    import scalatags.JsDom.svgTags.{svg, path, g}
+    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, xmlns, viewBox, transform, attr}
+
+    val margins = page.shrink(100)
+    @ScalaJSDefined
+    class Options(
+      var offsetX: Double,
+      var numCircles: Int,
+      var numCenters: Int,
+      var spacing: Double,
+      var wiggle: Double,
+      var wobble: Double,
+      var aSeed: Int
+    ) extends js.Object
+    val options = new Options(offsetX = 0.0, numCenters = 3, numCircles = 100, spacing = 3, wiggle = 0, wobble = 0, aSeed = seed)
+
+    def render(): Unit = {
+      import options._
+      val r = new scala.util.Random(aSeed)
+      val centers = for (_ <- 1 to numCenters) yield r.withinAABB(margins)
+      val circles = centers flatMap (center => {
+        val ang = r.angle
+        for (i <- 1 to numCircles) yield {
+          Circle2(
+            center + Vec2(offsetX, 0) * i + Vec2.forAngle(i * wobble * 2*Math.PI/360 + ang) * wiggle,
+            i * spacing
+          )
+        }
+      })
+
+      val paths = circles.map(margins.truncate(_)).flatMap {
+        case None => Seq.empty
+        case Some(Left(c)) => Seq(c.toSVG)
+        case Some(Right(arcs)) => arcs.map(_.toSVG)
+      }
+
+      val e = svg(
+        xmlns := "http://www.w3.org/2000/svg",
+        width := s"${page.width / 100.0}in",
+        height := s"${page.height / 100.0}in",
+        viewBox := s"0 0 ${page.width} ${page.height}",
+        attr("x-seed") := s"$aSeed",
+        g(
+          paths.map { p => path(d := p, stroke := "black", fill := "transparent") }: _*
+        )
+      ).render
+      root.innerHTML = ""
+      root.appendChild(e)
+    }
+    val gui = js.Dynamic.newInstance(js.Dynamic.global.dat.GUI)()
+    gui.add(options, "offsetX", -5, 5).onChange(render _)
+    gui.add(options, "wiggle", 0, 100).onChange(render _)
+    gui.add(options, "wobble", 0, 360).onChange(render _)
+    gui.add(options, "numCircles", 1, 500).step(1).onChange(render _)
+    gui.add(options, "numCenters", 1, 50).step(1).onChange(render _)
+    gui.add(options, "spacing", 0, 50).onChange(render _)
+    gui.add(js.Dynamic.literal(
+      reseed = (() => {options.aSeed = scala.util.Random.nextInt(); render()}): js.Function0[Unit]
+    ), "reseed")
+    render()
+  }
+
+  def waves(root: html.Div): Unit = {
+    import scalatags.JsDom.implicits._
+    import scalatags.JsDom.svgTags.{svg, path, g}
+    import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, xmlns, viewBox, transform, attr}
+
+    val margins = page.shrink(100)
+
+    val centerLine = Segment2(
+      Vec2(margins.lower.x, margins.center.y),
+      Vec2(margins.upper.x, margins.center.y)
+    )
+
+    val n = 200
+    val segs = (1 to (n-1)) map { i =>
+      val rot = Mat33.rotate(-math.cos(i * 2 * Math.PI / n) * 2.4)
+      val up = rot * Vec2(0, 100)
+      Segment2(centerLine.sample(i.toDouble / n) + up, centerLine.sample(i.toDouble / n) - up)
+    }
+
+    val paths: Seq[String] = for (s <- segs; if margins.contains(s); seg <- margins.truncate(s)) yield seg.toSVG
+
+    val e = svg(
+      xmlns := "http://www.w3.org/2000/svg",
+      width := s"${page.width / 100.0}in",
+      height := s"${page.height / 100.0}in",
+      viewBox := s"0 0 ${page.width} ${page.height}",
+      attr("x-seed") := s"$seed",
+      g(
+        paths.map { p => path(d := p, stroke := "black", fill := "transparent") }: _*
+      )
+    ).render
+    root.innerHTML = ""
+    root.appendChild(e)
+  }
+
   def arcs(root: html.Div): Unit = {
     import scalatags.JsDom.implicits._
     import scalatags.JsDom.svgTags.{svg, path, g}
     import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, xmlns, viewBox, transform, attr}
 
-    val page = AABB(Vec2(0, 0), Vec2(1200, 900))
     val margins = page.shrink(100)
-    val seed = scala.util.Random.nextInt
-    val r = new scala.util.Random(seed)
 
     val cellSize: Double = 100
     val numCellsX: Int = math.floor(margins.width / cellSize).toInt
@@ -340,16 +494,13 @@ object PCGTest {
     import scalatags.JsDom.implicits._
     import scalatags.JsDom.svgTags.{svg, path, g, text}
     import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, transform, viewBox, xmlns, attr}
-    val page = AABB(Vec2(0, 0), Vec2(1200, 900))
-    val margins = page.shrink(100)
-    val seed = scala.util.Random.nextInt
-    val r = new scala.util.Random(seed)
+    val margins = page.shrink(50)
 
     //- Definitions -//
     def randomPoints(n: Int = 200) =
-      for (i <- 1 to n) yield Vec2(r.nextDouble() * page.width, r.nextDouble() * page.height)
-    def cropCircles(relax: Boolean = true) = {
-      val points = randomPoints(2300)
+      for (_ <- 1 to n) yield Vec2(r.nextDouble() * page.width, r.nextDouble() * page.height)
+    def cropCircles(numPoints: Int = 1300, relax: Boolean = true) = {
+      val points = randomPoints(numPoints)
       val relaxed = if (relax) LloydRelaxation.voronoiRelax(margins, points).toSeq else points
       relaxed ++ (1 to 5 flatMap { _ =>
         val radius = r.between(20, 300)
@@ -392,16 +543,27 @@ object PCGTest {
     def perturbPoints(points: Seq[Vec2], factor: Vec2 => Double) = points map { p => p + r.withinCircle(factor(p)) }
     def excludePoints(points: Seq[Vec2], circle: Circle2): Seq[Vec2] = points.filterNot(circle.contains)
 
+    def relax[T <: Iterable[Vec2]](points: T, n: Int = 1): Seq[Vec2] = Iterator.iterate(points.toSeq)(ps => LloydRelaxation.voronoiRelax(margins, ps).toSeq).drop(n-1).next()
+
     //- Options -//
-    val points = justCircles(relax = true)
-    val useCells = true
+    //val points = justCircles(relax = true)
+    val points = cropCircles(numPoints = 500, relax = false)
+    //val points = relax(justCircles(10, relax=false) ++ hexes(43), n=4)
+    //val points = justCircles(10, relax=false, density=0.4) ++ perturbPoints(hexes(20), x => 1 + (margins.center -> x).length/20)
+    val useCells = false
+
+    val initialCells = Voronoi.computeD3(points)
 
     /*val v = new Voronoi(points)
     while (v.nextEventY.isDefined) v.step()*/
-    //val cells = shiftCellsRightwards(Voronoi.computeD3(points))
-    //val cells = rotateCellsOutwards(Voronoi.computeD3(points))
-    val cells = rotateCellsOutwardsRandomly(Voronoi.computeD3(justCircles(10, relax=false, density=0.4) ++ perturbPoints(hexes(20), x => 1 + (margins.center -> x).length/20)))
-    val e = svg(
+    //val cells = shiftCellsRightwards(initialCells)
+    //val cells = rotateCellsOutwards(initialCells)
+    //val cells = rotateCellsOutwardsRandomly(initialCells)
+    val cells = initialCells
+
+    val segs = cells filter (margins.shrink(40).contains(_)) flatMap (c => randomlyConnect(c.points, factor = 0.2))
+
+    val e = timed("make svg")(svg(
       xmlns := "http://www.w3.org/2000/svg",
       width := s"${page.width / 100.0}in",
       height := s"${page.height / 100.0}in",
@@ -410,17 +572,16 @@ object PCGTest {
       g(
         (
           if (useCells)
-            (for (cell <- cells; if margins.contains(cell); seg <- margins.truncate(cell)) yield {
+            (for (cell <- cells; if margins.shrink(40).contains(cell); seg <- margins.truncate(cell)) yield {
               path(d := seg.toSVG, fill := "transparent", stroke := "black")
             })(collection.breakOut)
           else
-            ???
-            /*(for ((_, e) <- v.edges; if e.start != null && e.end != null; seg <- margins.truncate(Segment2(e.start, e.end))) yield {
+            (for (seg <- segs; if margins.contains(seg)) yield {
               path(d := seg.toSVG, fill := "transparent", stroke := "black")
-            })(collection.breakOut)*/
+            })(collection.breakOut)
         ): _*
       )
-    ).render
+    ).render)
     root.innerHTML = ""
     root.appendChild(e)
   }
@@ -684,7 +845,6 @@ object PCGTest {
     import scalatags.JsDom.svgTags.{svg, path, g}
     import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, viewBox, transform, xmlns}
 
-    val page = AABB(Vec2(0, 0), Vec2(1200, 900))
     val margins = page.shrink(100)
     val s = new kit.pcg.Substrate(
       //sources = Set((Vec2(0, 0), 1d), (Vec2(100, -20), 2d)),
@@ -732,30 +892,31 @@ object PCGTest {
     import scalatags.JsDom.implicits._
     import scalatags.JsDom.svgTags.{svg, path, g, text}
     import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, transform, viewBox, xmlns, attr}
-    val page = AABB(Vec2(0, 0), Vec2(1200, 900))
     val margins = page.shrink(100)
-    val seed = scala.util.Random.nextInt
-    val r = new scala.util.Random(seed)
 
-    val cellSize = 200
+    val cellSize = 80
     val numCellsX = (margins.width / cellSize).floor.toInt
     val numCellsY = (margins.height / cellSize).floor.toInt
-    val spacing = 2.0
+    val spacing = 5
     val numSegs = (cellSize / spacing).floor.toInt
     val segs = (-numSegs/2-25 to numSegs/2+25) map { i => Segment2(Vec2(-cellSize, i*spacing), Vec2(cellSize, i*spacing)) }
-    /*val cells = for (y <- 0 until numCellsY; x <- 0 until numCellsX) yield {
+    val cells = for (y <- 0 until numCellsY; x <- 0 until numCellsX) yield {
       AABB(x * cellSize, y * cellSize, (x + 1) * cellSize, (y + 1) * cellSize).translate(margins.lower)
-    }*/
-    val cells = Seq(AABB(margins.center - Vec2(cellSize/2, cellSize/2), margins.center + Vec2(cellSize/2, cellSize/2)))
+    }
+    //val cells = Seq(AABB(margins.center - Vec2(cellSize/2, cellSize/2), margins.center + Vec2(cellSize/2, cellSize/2)))
     val segments = (for (cell <- cells) yield {
       //val cell = AABB(x * cellSize, y * cellSize, (x + 1) * cellSize, (y + 1) * cellSize).translate(margins.lower)
       (for (i <- 1 to 1) yield {
         val mat = Mat33.rotate(r.angle)
         val rotatedSegs = segs.map { s => Segment2(mat * s.a + cell.center, mat * s.b + cell.center) }
         val truncatedSegs = rotatedSegs.flatMap(cell.truncate(_))
-        truncatedSegs // ++ cell.toPolygon.segments
+        val points = truncatedSegs flatMap (seg => Seq(seg.a, seg.b))
+        randomlyConnect(points, 0.03 * math.cos((cell.center.x - margins.center.x) / margins.width * 4)) filter { seg => seg.a.x != seg.b.x && seg.a.y != seg.b.y}
+        //truncatedSegs // ++ cell.toPolygon.segments
       }).flatten
     }).flatten
+
+    val alternatedSegments = segments.zipWithIndex map { case (seg, i) => if (i % 2 == 0) seg.reverse else seg }
 
     val e = svg(
       xmlns := "http://www.w3.org/2000/svg",
@@ -764,12 +925,78 @@ object PCGTest {
       viewBox := s"0 0 ${page.width} ${page.height}",
       attr("x-seed") := s"$seed",
       g(
-        (for (shape <- segments; s = shape) yield { //s <- margins.truncate(shape)) yield {
+        (for (shape <- alternatedSegments; s = shape) yield { //s <- margins.truncate(shape)) yield {
           path(d := s.toSVG, fill := "transparent", stroke := "black")
         })(collection.breakOut): _*
       )
     ).render
     root.innerHTML = ""
     root.appendChild(e)
+  }
+
+  def text(root: html.Div): Unit = {
+    import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
+    case class Glyph(path: String, width: Double, height: Double)
+    val url = "assets/isocpeur.svg"
+    val glyphMapFuture = Ajax.get(url).map { xhr =>
+      val glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ:1234567890."
+      val glyphSVGParent = dom.document.createElement("div")
+      dom.document.body.appendChild(glyphSVGParent)
+      glyphSVGParent.innerHTML = xhr.responseText
+      val glyphSVG = glyphSVGParent.getElementsByTagName("svg")(0).asInstanceOf[dom.Element]
+      val paths = glyphSVG.getElementsByTagName("path").asInstanceOf[js.Dynamic]
+      val glyphMap: Map[Char, Glyph] = (for (g <- glyphs) yield {
+        val codepoint = g.toInt
+        val glyph = paths.selectDynamic(f"glyph-$codepoint%04X").asInstanceOf[SVGPathElement]
+        val bbEl: dom.raw.SVGLocatable =
+          if (glyph.hasAttribute("x-bb")) {
+            glyphSVG.querySelector(glyph.getAttribute("x-bb")).asInstanceOf[dom.raw.SVGLocatable]
+          } else
+            glyph
+        val bb = bbEl.getBBox()
+        val seg = glyph.createSVGPathSegMovetoRel(-bb.x, -bb.y)
+        glyph.pathSegList.insertItemBefore(seg, 0)
+        g -> Glyph(path=glyph.getAttribute("d"), width=bb.width, height=bb.height)
+      })(collection.breakOut)
+      dom.document.body.removeChild(glyphSVGParent)
+      glyphMap ++ Map(" " -> Glyph("", 20, 0))
+    }
+    val margins = page.shrink(100)
+    for (glyphMap <- glyphMapFuture) {
+      import scalatags.JsDom.implicits._
+      import scalatags.JsDom.svgTags.{svg, path, g, text}
+      import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, transform, viewBox, xmlns, attr}
+      def lineText(str: String, pos: Vec2, height: Double = 20.0) = {
+        val xHeight = glyphMap('X').height
+        val scale = height / xHeight
+        var x = 0.0
+        g(
+          transform := s"translate(${pos.x},${pos.y}) scale($scale,$scale)",
+          g(
+            (for (char <- str) yield {
+              val glyph = glyphMap.getOrElse(char.toUpper, Glyph("", 8, 0))
+              val p = path(transform := s"translate($x, 0)", d := glyph.path, fill := "transparent", stroke := "black")
+              x += glyph.width + 4
+              p
+            })(collection.breakOut): _*
+          )
+        )
+      }
+      val sizes = (1 to 10) map (_*2)
+      val e = svg(
+        xmlns := "http://www.w3.org/2000/svg",
+        width := s"${page.width / 100.0}in",
+        height := s"${page.height / 100.0}in",
+        viewBox := s"0 0 ${page.width} ${page.height}",
+        attr("x-seed") := s"$seed",
+        g(
+          (for ((size, i) <- sizes.zipWithIndex) yield {
+            lineText(s"size $size Sphinx of black quartz, judge my vow", margins.lower + Vec2(0, sizes.map(_+4).take(i).sum), size)
+          })(collection.breakOut): _*
+        )
+      ).render
+      root.innerHTML = ""
+      root.appendChild(e)
+    }
   }
 }
