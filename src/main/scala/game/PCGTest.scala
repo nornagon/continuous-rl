@@ -60,25 +60,23 @@ object PCGTest {
   @JSExport
   def main(root: html.Div): Unit = {
     root.innerHTML = ""  // Otherwise workbench update doesn't work properly
-    timed("root") {
-      circles(root)
-      //text(root)
-      //interlockingGrids(root)
-      //substrateSVG(root)
-      //withCanvas(root, substrate)
-      //withCanvas(root, spacePacking)
-      //withCanvas(root, relaxation)
-      //time(root)
-      //stars(root)
-      //boxes(root)
-      //withCanvas(root, noise)
-      //withCanvas(root, particles)
-      //particlesSVG(root)
-      //withCanvas(root, voronoi)
-      //voronoiSVG(root)
-      //arcs(root)
-      //waves(root)
-    }
+    //circles(root)
+    //text(root)
+    //interlockingGrids(root)
+    //substrateSVG(root)
+    //withCanvas(root, substrate)
+    //withCanvas(root, spacePacking)
+    //withCanvas(root, relaxation)
+    //time(root)
+    //stars(root)
+    //boxes(root)
+    //withCanvas(root, noise)
+    //withCanvas(root, particles)
+    //particlesSVG(root)
+    //withCanvas(root, voronoi)
+    voronoiSVG(root)
+    //arcs(root)
+    //waves(root)
   }
 
   val page = AABB(Vec2(0, 0), Vec2(1200, 900))
@@ -93,7 +91,7 @@ object PCGTest {
     f(element)
   }
 
-  val seed = scala.util.Random.nextInt
+  val seed: Int = scala.util.Random.nextInt
   val r = new scala.util.Random(seed)
 
   def randomlyConnect(points: Seq[Vec2], factor: Double): Seq[Segment2] =
@@ -105,19 +103,25 @@ object PCGTest {
     import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, xmlns, viewBox, transform, attr}
 
     val margins = page.shrink(100)
-    @ScalaJSDefined
-    class Options(
-      var offsetX: Double,
-      var numCircles: Int,
-      var numCenters: Int,
-      var spacing: Double,
-      var wiggle: Double,
-      var wobble: Double,
-      var aSeed: Int
-    ) extends js.Object
-    val options = new Options(offsetX = 0.0, numCenters = 3, numCircles = 100, spacing = 3, wiggle = 0, wobble = 0, aSeed = seed)
 
-    def render(): Unit = {
+    @Tweakable.Options
+    case class Options(
+      @Tweakable.Range(-5, 5)
+      offsetX: Double = 0,
+      @Tweakable.Range(1, 500)
+      numCircles: Int = 100,
+      @Tweakable.Range(1, 50)
+      numCenters: Int = 3,
+      @Tweakable.Range(0, 50)
+      spacing: Double = 3,
+      @Tweakable.Range(0, 100)
+      wiggle: Double = 0,
+      @Tweakable.Range(0, 360)
+      wobble: Double = 0,
+      aSeed: Int = seed
+    )
+
+    def render(options: Options): Unit = {
       import options._
       val r = new scala.util.Random(aSeed)
       val centers = for (_ <- 1 to numCenters) yield r.withinAABB(margins)
@@ -131,7 +135,7 @@ object PCGTest {
         }
       })
 
-      val paths = circles.map(margins.truncate(_)).flatMap {
+      val paths = circles.map(margins.truncate).flatMap {
         case None => Seq.empty
         case Some(Left(c)) => Seq(c.toSVG)
         case Some(Right(arcs)) => arcs.map(_.toSVG)
@@ -150,17 +154,8 @@ object PCGTest {
       root.innerHTML = ""
       root.appendChild(e)
     }
-    val gui = js.Dynamic.newInstance(js.Dynamic.global.dat.GUI)()
-    gui.add(options, "offsetX", -5, 5).onChange(render _)
-    gui.add(options, "wiggle", 0, 100).onChange(render _)
-    gui.add(options, "wobble", 0, 360).onChange(render _)
-    gui.add(options, "numCircles", 1, 500).step(1).onChange(render _)
-    gui.add(options, "numCenters", 1, 50).step(1).onChange(render _)
-    gui.add(options, "spacing", 0, 50).onChange(render _)
-    gui.add(js.Dynamic.literal(
-      reseed = (() => {options.aSeed = scala.util.Random.nextInt(); render()}): js.Function0[Unit]
-    ), "reseed")
-    render()
+
+    Options.tweakable()(render _)
   }
 
   def waves(root: html.Div): Unit = {
@@ -170,32 +165,44 @@ object PCGTest {
 
     val margins = page.shrink(100)
 
-    val centerLine = Segment2(
-      Vec2(margins.lower.x, margins.center.y),
-      Vec2(margins.upper.x, margins.center.y)
+    @Tweakable.Options
+    case class Params(
+      n: Int = 200,
+      @Tweakable.Range(0, Math.PI)
+      rotAmount: Double = 2.4,
+      stickLength: Double = 100
     )
 
-    val n = 200
-    val segs = (1 to (n-1)) map { i =>
-      val rot = Mat33.rotate(-math.cos(i * 2 * Math.PI / n) * 2.4)
-      val up = rot * Vec2(0, 100)
-      Segment2(centerLine.sample(i.toDouble / n) + up, centerLine.sample(i.toDouble / n) - up)
+    def render(options: Params) = {
+      import options._
+      val centerLine = Segment2(
+        Vec2(margins.lower.x, margins.center.y),
+        Vec2(margins.upper.x, margins.center.y)
+      )
+
+      val segs = (1 to (n - 1)) map { i =>
+        val rot = Mat33.rotate(-math.cos(i * 2 * Math.PI / n) * rotAmount)
+        val up = rot * Vec2(0, stickLength)
+        Segment2(centerLine.sample(i.toDouble / n) + up, centerLine.sample(i.toDouble / n) - up)
+      }
+
+      val paths: Seq[String] = for (s <- segs; if margins.contains(s); seg <- margins.truncate(s)) yield seg.toSVG
+
+      val e = svg(
+        xmlns := "http://www.w3.org/2000/svg",
+        width := s"${page.width / 100.0}in",
+        height := s"${page.height / 100.0}in",
+        viewBox := s"0 0 ${page.width} ${page.height}",
+        attr("x-seed") := s"$seed",
+        g(
+          paths.map { p => path(d := p, stroke := "black", fill := "transparent") }: _*
+        )
+      ).render
+      root.innerHTML = ""
+      root.appendChild(e)
     }
 
-    val paths: Seq[String] = for (s <- segs; if margins.contains(s); seg <- margins.truncate(s)) yield seg.toSVG
-
-    val e = svg(
-      xmlns := "http://www.w3.org/2000/svg",
-      width := s"${page.width / 100.0}in",
-      height := s"${page.height / 100.0}in",
-      viewBox := s"0 0 ${page.width} ${page.height}",
-      attr("x-seed") := s"$seed",
-      g(
-        paths.map { p => path(d := p, stroke := "black", fill := "transparent") }: _*
-      )
-    ).render
-    root.innerHTML = ""
-    root.appendChild(e)
+    Params.tweakable()(render _)
   }
 
   def arcs(root: html.Div): Unit = {
@@ -495,6 +502,7 @@ object PCGTest {
     import scalatags.JsDom.svgTags.{svg, path, g, text}
     import scalatags.JsDom.svgAttrs.{d, fill, stroke, width, height, transform, viewBox, xmlns, attr}
     val margins = page.shrink(50)
+    var r = new scala.util.Random(seed)
 
     //- Definitions -//
     def randomPoints(n: Int = 200) =
@@ -543,47 +551,85 @@ object PCGTest {
     def perturbPoints(points: Seq[Vec2], factor: Vec2 => Double) = points map { p => p + r.withinCircle(factor(p)) }
     def excludePoints(points: Seq[Vec2], circle: Circle2): Seq[Vec2] = points.filterNot(circle.contains)
 
-    def relax[T <: Iterable[Vec2]](points: T, n: Int = 1): Seq[Vec2] = Iterator.iterate(points.toSeq)(ps => LloydRelaxation.voronoiRelax(margins, ps).toSeq).drop(n-1).next()
+    def relax[T <: Iterable[Vec2]](points: T, n: Int = 1): Seq[Vec2] =
+      Iterator.iterate(points.toSeq)(ps =>
+        LloydRelaxation.voronoiRelax(margins, ps).toSeq
+      ).drop(n).next()
 
-    //- Options -//
-    //val points = justCircles(relax = true)
-    val points = cropCircles(numPoints = 500, relax = false)
-    //val points = relax(justCircles(10, relax=false) ++ hexes(43), n=4)
-    //val points = justCircles(10, relax=false, density=0.4) ++ perturbPoints(hexes(20), x => 1 + (margins.center -> x).length/20)
-    val useCells = false
+    @Tweakable.Options
+    case class Params(
+      @Tweakable.Enum("justCircles", "cropCircles", "hexes", "perturbedHexes")
+      initial: String = "cropCircles",
+      @Tweakable.Range(0, 50)
+      initialSize: Int = 10,
+      @Tweakable.Range(0, 2)
+      density: Double = 0.4,
+      doPreRelax: Boolean = true,
+      @Tweakable.Range(0, 5)
+      postRelaxCount: Int = 4,
+      @Tweakable.Range(10, 100)
+      hexSize: Int = 43,
+      doRandomlyConnect: Boolean = false,
+      doShiftCellsOutwards: Boolean = false
+    )
+    def render(params: Params) = {
+      import params._
+      r = new scala.util.Random(seed)
+      //- Options -//
+      //val points = justCircles(relax = true)
+      //val points = cropCircles(numPoints = 500, relax = false)
+      //val points = relax(justCircles(initialSize, relax=doPreRelax) ++ hexes(hexSize), n=postRelaxCount)
+      //val points = justCircles(10, relax=false, density=0.4) ++ perturbPoints(hexes(20), x => 1 + (margins.center -> x).length/20)
+      var points = params.initial match {
+        case "justCircles" => justCircles(initialSize, relax = doPreRelax, density = density)
+        case "cropCircles" => cropCircles(numPoints = 500, relax = doPreRelax)
+        case "hexes" => justCircles(initialSize, relax=doPreRelax, density = density) ++ hexes(hexSize)
+        case "perturbedHexes" =>
+          justCircles(initialSize, relax = doPreRelax, density = density) ++ perturbPoints(hexes(hexSize), x => 1 + (margins.center -> x).length/20)
+      }
+      points = relax(points, n=postRelaxCount)
+      val useCells = false
 
-    val initialCells = Voronoi.computeD3(points)
+      val initialCells = Voronoi.computeD3(points) filter (margins contains _)
 
-    /*val v = new Voronoi(points)
-    while (v.nextEventY.isDefined) v.step()*/
-    //val cells = shiftCellsRightwards(initialCells)
-    //val cells = rotateCellsOutwards(initialCells)
-    //val cells = rotateCellsOutwardsRandomly(initialCells)
-    val cells = initialCells
+      /*val v = new Voronoi(points)
+      while (v.nextEventY.isDefined) v.step()*/
+      //val cells = shiftCellsRightwards(initialCells)
+      //val cells = rotateCellsOutwards(initialCells)
+      //val cells = rotateCellsOutwardsRandomly(initialCells)
+      var cells = initialCells
+      if (doShiftCellsOutwards)
+        cells = shiftCellsOutwards(cells)
 
-    val segs = cells filter (margins.shrink(40).contains(_)) flatMap (c => randomlyConnect(c.points, factor = 0.2))
+      val segs =
+        if (doRandomlyConnect)
+          cells filter (margins.shrink(40).contains(_)) flatMap (c => randomlyConnect(c.points, factor = 0.2))
+        else
+          cells flatMap (_.segments)
 
-    val e = timed("make svg")(svg(
-      xmlns := "http://www.w3.org/2000/svg",
-      width := s"${page.width / 100.0}in",
-      height := s"${page.height / 100.0}in",
-      viewBox := s"0 0 ${page.width} ${page.height}",
-      attr("x-seed") := s"$seed",
-      g(
-        (
-          if (useCells)
-            (for (cell <- cells; if margins.shrink(40).contains(cell); seg <- margins.truncate(cell)) yield {
-              path(d := seg.toSVG, fill := "transparent", stroke := "black")
-            })(collection.breakOut)
-          else
-            (for (seg <- segs; if margins.contains(seg)) yield {
-              path(d := seg.toSVG, fill := "transparent", stroke := "black")
-            })(collection.breakOut)
-        ): _*
-      )
-    ).render)
-    root.innerHTML = ""
-    root.appendChild(e)
+      val e = timed("make svg")(svg(
+        xmlns := "http://www.w3.org/2000/svg",
+        width := s"${page.width / 100.0}in",
+        height := s"${page.height / 100.0}in",
+        viewBox := s"0 0 ${page.width} ${page.height}",
+        attr("x-seed") := s"$seed",
+        g(
+          (
+            if (useCells)
+              (for (cell <- cells; if margins.shrink(40).contains(cell); seg <- margins.truncate(cell)) yield {
+                path(d := seg.toSVG, fill := "transparent", stroke := "black")
+              })(collection.breakOut)
+            else
+              (for (seg <- segs; if margins.contains(seg)) yield {
+                path(d := seg.toSVG, fill := "transparent", stroke := "black")
+              })(collection.breakOut)
+          ): _*
+        )
+      ).render)
+      root.innerHTML = ""
+      root.appendChild(e)
+    }
+    Params.tweakable()(render _)
   }
 
   def voronoi(canvas: html.Canvas): Unit = {
