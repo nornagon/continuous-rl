@@ -446,6 +446,7 @@ case class AABB(lower: Vec2, upper: Vec2) {
     */
   def intersection(seg: Segment2): Option[Vec2] = {
     // Liang-Barsky
+    // https://gist.github.com/ChickenProp/3194723
     val a = seg.a
     val delta = a -> seg.b
     val p = Seq(-delta.x, delta.x, -delta.y, delta.y)
