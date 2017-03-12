@@ -22,7 +22,7 @@ package Tweakable {
           def tweakable(..$vs)(trigger: $name => Unit): Unit = {
             var latest = ${Term.Name(name.value)}(..${vs.map(v => Term.Name(v.name.value))})
             val opts = _root_.scala.scalajs.js.Dynamic.literal(..$namedArgs)
-            val gui = _root_.scala.scalajs.js.Dynamic.newInstance(js.Dynamic.global.dat.GUI)()
+            val gui = _root_.scala.scalajs.js.Dynamic.newInstance(_root_.scala.scalajs.js.Dynamic.global.dat.GUI)()
             ..${vs.map { v =>
               val extra = v.mods.collect {
                 case mod"@Tweakable.Range($low, $high)" =>
@@ -33,7 +33,7 @@ package Tweakable {
                     }
                   )
                 case mod"@Tweakable.Enum(..$opts)" =>
-                  Seq(q"js.Array(..$opts)")
+                  Seq(q"_root_.scala.scalajs.js.Array(..$opts)")
               }.flatten
               val argToUpdate = Term.Arg.Named(
                 Term.Name(v.name.value),
