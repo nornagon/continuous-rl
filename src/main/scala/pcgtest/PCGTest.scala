@@ -17,7 +17,8 @@ object PCGTest {
   @JSExport
   def main(root: html.Div): Unit = {
     root.innerHTML = ""  // Otherwise workbench update doesn't work properly
-    new Voronoi(page, seed).voronoiSVG(root)
+    //new Voronoi(page, seed).voronoiSVG(root)
+    new Symmetry(page, seed).symmetry(root)
   }
 
   def withCanvas(root: html.Div, f: html.Canvas => Unit): Unit = {

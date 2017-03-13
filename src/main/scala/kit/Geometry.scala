@@ -161,6 +161,14 @@ object Mat33 {
       0, 0, 1
     )
   }
+  def scale(x: Double, y: Double): Mat33 = {
+    Mat33(
+      x, 0, 0,
+      0, y, 0,
+      0, 0, 1
+    )
+  }
+  def scale(v: Vec2): Mat33 = scale(v.x, v.y)
 }
 
 sealed trait Shape2 {

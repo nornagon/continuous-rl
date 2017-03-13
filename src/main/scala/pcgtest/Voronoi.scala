@@ -6,12 +6,12 @@ import kit._
 import kit.pcg.LloydRelaxation
 import org.scalajs.dom
 import org.scalajs.dom.{MouseEvent, html}
+import scalatags.JsDom.implicits._
+import scalatags.JsDom.svgAttrs.{attr, d, fill, height, stroke, viewBox, width, xmlns}
+import scalatags.JsDom.svgTags.{g, path, svg}
 
 class Voronoi(page: AABB, seed: Int) {
   def voronoiSVG(root: html.Div): Unit = {
-    import scalatags.JsDom.implicits._
-    import scalatags.JsDom.svgAttrs.{attr, d, fill, height, stroke, viewBox, width, xmlns}
-    import scalatags.JsDom.svgTags.{g, path, svg}
     val margins = page.shrink(50)
     implicit var r = new scala.util.Random(seed)
 
