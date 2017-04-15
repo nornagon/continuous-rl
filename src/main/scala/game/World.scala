@@ -94,21 +94,20 @@ class World {
 
   def update(): Unit = {
     val dt = 1.0/60 * 2
-    currentAction match {
-      case Some(action) =>
-        deadEntities foreach doRemoveEntity
-        deadEntities.clear()
-        action.update(this, dt)
+    currentAction foreach { action =>
+      // Leave dead entities in to be drawn, otherwise the last frame of a bullet doesn't get drawn.
+      deadEntities foreach doRemoveEntity
+      deadEntities.clear()
+      action.update(this, dt)
 
-        frameEvents.clear()
-        space.step(dt)
+      frameEvents.clear()
+      space.step(dt)
 
-        dynamicEntities foreach (_.update(this, dt))
-        frameEvents foreach (_.applyTo(this))
+      dynamicEntities foreach (_.update(this, dt))
+      frameEvents foreach (_.applyTo(this))
 
-        if (action.isDone)
-          currentAction = None
-      case _ =>
+      if (action.isDone)
+        currentAction = None
     }
   }
 
@@ -182,7 +181,7 @@ class World {
       ctx.fillStyle = "thistle"
       ctx.font = "10px Menlo, Consolas, monospace"
       ctx.textBaseline = "top"
-      ctx.fillText(s"Drew ${visibleEntities.size} entities", 10, 10)
+      ctx.fillText(s"Drew ${visibleEntities.size} entities (${visibleEntities.count(_.castsShadow)} shadows)", 10, 10)
     }
   }
 

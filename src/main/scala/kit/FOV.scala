@@ -152,6 +152,8 @@ object FOV {
     * @return A list of vertices which form the edge of vision.
     */
   def calculateFOV2(source: Vec2, segments: Seq[Segment2], bounds: AABB): Seq[Vec2] = {
+    if (segments.isEmpty)
+      return bounds.corners
     // thought: add all the sight lines as segments to the boundary use Bentley-Ottmann for (n + k) lg n instead of n^2
     // https://en.wikipedia.org/wiki/Bentley%E2%80%93Ottmann_algorithm
     val maxDist = bounds.maxDimension / 2
