@@ -281,9 +281,13 @@ object Shapes {
     d2 <= rsum2
   }
   def intersects(a: Arc2, b: Arc2): Boolean = ???
-  def intersects(a: Segment2, b: Segment2): Boolean = ???
+  def intersects(a: Segment2, b: Segment2): Boolean = intersections(a, b).nonEmpty
   def intersects(a: Polygon, b: Polygon): Boolean = ???
-  def intersects(a: AABB, b: AABB): Boolean = ???
+  def intersects(a: AABB, b: AABB): Boolean =
+    a.lower.x <= b.upper.x &&
+    b.lower.x <= a.upper.x &&
+    a.lower.y <= b.upper.y &&
+    b.lower.y <= a.upper.y
   @Reversible def intersects(a: Circle2, b: Arc2): Boolean = ???
   @Reversible def intersects(a: Circle2, b: Segment2): Boolean = ???
   @Reversible def intersects(a: Circle2, b: Polygon): Boolean = ???
@@ -291,7 +295,9 @@ object Shapes {
   @Reversible def intersects(a: Arc2, b: Segment2): Boolean = ???
   @Reversible def intersects(a: Arc2, b: Polygon): Boolean = ???
   @Reversible def intersects(a: Arc2, b: AABB): Boolean = ???
-  @Reversible def intersects(a: Segment2, b: Polygon): Boolean = ???
+  @Reversible def intersects(a: Segment2, b: Polygon): Boolean = {
+    b.segments.exists(intersects(a, _))
+  }
   @Reversible def intersects(a: Segment2, b: AABB): Boolean = ???
   @Reversible def intersects(a: Polygon, b: AABB): Boolean = ???
 }
@@ -542,6 +548,9 @@ object AABB {
   * `lower` must be <= `upper` in both dimensions.
   */
 case class AABB(lower: Vec2, upper: Vec2) extends Shape2 {
+  def subdivided(x: Int, y: Int): Seq[Vec2] =
+    for (i <- 0 until y; j <- 0 until x) yield lower + Vec2(width / x * j, height / y * i)
+
   require(lower.x <= upper.x && lower.y <= upper.y, s"Invalid AABB: $lower must be <= $upper")
 
   def width: Double = upper.x - lower.x
@@ -557,6 +566,8 @@ case class AABB(lower: Vec2, upper: Vec2) extends Shape2 {
   private def ul = Vec2(upper.x, lower.y)
   private def uu = upper
   private def lu = Vec2(lower.x, upper.y)
+
+  def corners: Seq[Vec2] = Seq(ll, ul, uu, lu)
 
   private def topEdge = Segment2(ll, ul)
   private def rightEdge = Segment2(ul, uu)

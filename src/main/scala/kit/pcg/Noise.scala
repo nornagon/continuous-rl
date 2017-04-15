@@ -9,13 +9,13 @@ class Noise(seed: Int) {
     def dot3(ox: Double, oy: Double, oz: Double): Double = ox*x + oy*y + oz*z
   }
 
-  val grad3 = Seq(
+  private val grad3 = Seq(
     Grad(1, 1, 0), Grad(-1, 1, 0), Grad(1, -1, 0), Grad(-1, -1, 0),
     Grad(1, 0, 1), Grad(-1, 0, 1), Grad(1, 0, -1), Grad(-1, 0, -1),
     Grad(0, 1, 1), Grad(0, -1, 1), Grad(0, 1, -1), Grad(0, -1, -1)
   )
-  val grads = Circle2(Vec2(0, 0), 1).toPolygon(12).points.map { case Vec2(x, y) => Grad(x, y, 0) }
-  val p = Seq(
+  private val grads = Circle2(Vec2(0, 0), 1).toPolygon(12).points.map { case Vec2(x, y) => Grad(x, y, 0) }
+  private val p = Seq(
     151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140,
     36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148, 247, 120,
     234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
@@ -33,8 +33,8 @@ class Noise(seed: Int) {
     115, 121, 50, 45, 127, 4, 150, 254, 138, 236, 205, 93, 222, 114, 67, 29,
     24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
   )
-  val perm = new Array[Int](512)
-  val gradP = new Array[Grad](512)
+  private val perm = new Array[Int](512)
+  private val gradP = new Array[Grad](512)
 
   private def generateSeedData(_seed: Int): Unit = {
     val seed = if (_seed < 256) _seed | (_seed << 8) else _seed
@@ -57,10 +57,10 @@ class Noise(seed: Int) {
   generateSeedData(seed)
 
   // Skewing and unskewing factors
-  def F(n: Int): Double = (Math.sqrt(n + 1.0) - 1) / n
-  def G(n: Int): Double = -(1/Math.sqrt(n + 1.0) - 1) / n
-  val F2 = F(2)
-  val G2 = G(2)
+  private def F(n: Int): Double = (Math.sqrt(n + 1.0) - 1) / n
+  private def G(n: Int): Double = -(1/Math.sqrt(n + 1.0) - 1) / n
+  private val F2 = F(2)
+  private val G2 = G(2)
 
   // 2D simplex noise
   def simplex2(xin: Double, yin: Double): Double = {
