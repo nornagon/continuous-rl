@@ -9,8 +9,8 @@ import scala.scalajs.js.annotation.JSExport
 @JSExport
 object PCGTest {
   //val page = AABB(Vec2(0, 0), Vec2(1200, 900))
-  //val page = AABB(Vec2(0, 0), Vec2(1000, 700))
-  val page = AABB(Vec2(0, 0), Vec2(830, 580))
+  val page = AABB(Vec2(0, 0), Vec2(1000, 700))
+  //val page = AABB(Vec2(0, 0), Vec2(830, 580))
 
   val seed: Int = scala.util.Random.nextInt
   val r = new scala.util.Random(seed)

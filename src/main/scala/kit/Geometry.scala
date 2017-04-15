@@ -172,141 +172,15 @@ object Mat33 {
 }
 
 sealed trait Shape2 {
-  def intersects(other: Shape2): Boolean = Shapes.intersects(this, other)
-  def intersects(other: Circle2): Boolean = Shapes.intersects(this, other)
-  def intersects(other: Arc2): Boolean = Shapes.intersects(this, other)
-  def intersects(other: Segment2): Boolean = Shapes.intersects(this, other)
-  def intersects(other: Polygon): Boolean = Shapes.intersects(this, other)
-  def intersects(other: AABB): Boolean = Shapes.intersects(this, other)
+  def intersects(other: Shape2): Boolean = Intersections.intersects(this, other)
+  def intersections(other: Shape2): Iterable[Intersections.Intersection] = Intersections.intersections(this, other)
 }
 
-object Shapes {
-  def intersections(a: Circle2, b: Circle2): Iterable[Vec2] = {
-    val d2 = (a.c -> b.c).lengthSquared
-    val rsum2 = (a.r + b.r) * (a.r + b.r)
-    if (d2 > rsum2)
-      return Seq.empty
-    if (d2 == rsum2)
-      return Seq(a.c.lerp(b.c, math.sqrt(d2)/2))
-    ???
-  }
-  def intersections(a: Arc2, b: Arc2): Iterable[Vec2] = ???
-  def intersections(a: Segment2, b: Segment2): Iterable[Vec2] = {
-    // http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
-    val dir = a.a -> a.b
-    val otherDir = b.a -> b.b
-    val dxo = dir cross otherDir
-    if (dxo == 0) {
-      if (((a.a -> b.a) cross dir) == 0) {
-        // The two segments are collinear.
-        val t0 = ((a.a -> b.a) dot dir) / (dir dot dir)
-        val t1 = t0 + ((otherDir dot dir) / (dir dot dir))
-        if ((t1 > t0 && t0 <= 1 && t1 >= 0) || (t1 <= t0 && t1 <= 1 && t0 >= 0))
-          // collinear and intersecting, return average of all points so `a intersection b` == `b intersection a`
-          Some((a.a + a.b + b.a + b.b) / 4)
-        else
-          // collinear but not intersecting
-          None
-      } else {
-        // The two segments are parallel and non-intersecting.
-        None
-      }
-    } else {
-      val t = ((a.a -> b.a) cross otherDir) / dxo
-      val u = ((a.a -> b.a) cross dir) / dxo
-      if (0 <= t && t <= 1 && 0 <= u && u <= 1)
-        Some(a.a + dir * t)
-      else
-        None
-    }
-  }
-  def intersections(a: Polygon, b: Polygon): Iterable[Vec2] = ???
-  def intersections(a: AABB, b: AABB): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Circle2, b: Arc2): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Circle2, b: Segment2): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Circle2, b: Polygon): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Circle2, b: AABB): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Arc2, b: Segment2): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Arc2, b: Polygon): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Arc2, b: AABB): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Segment2, b: Polygon): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Segment2, b: AABB): Iterable[Vec2] = ???
-  @Reversible def intersections(a: Polygon, b: AABB): Iterable[Vec2] = ???
-
-  def intersects(a: Shape2, b: Shape2): Boolean = a match {
-    case a: Circle2 =>
-      b match {
-        case b: Circle2 => intersects(a, b)
-        case b: Arc2 => intersects(a, b)
-        case b: Segment2 => intersects(a, b)
-        case b: Polygon => intersects(a, b)
-        case b: AABB => intersects(a, b)
-      }
-    case a: Arc2 =>
-      b match {
-        case b: Circle2 => intersects(a, b)
-        case b: Arc2 => intersects(a, b)
-        case b: Segment2 => intersects(a, b)
-        case b: Polygon => intersects(a, b)
-        case b: AABB => intersects(a, b)
-      }
-    case a: Segment2 =>
-      b match {
-        case b: Circle2 => intersects(a, b)
-        case b: Arc2 => intersects(a, b)
-        case b: Segment2 => intersects(a, b)
-        case b: Polygon => intersects(a, b)
-        case b: AABB => intersects(a, b)
-      }
-    case a: Polygon =>
-      b match {
-        case b: Circle2 => intersects(a, b)
-        case b: Arc2 => intersects(a, b)
-        case b: Segment2 => intersects(a, b)
-        case b: Polygon => intersects(a, b)
-        case b: AABB => intersects(a, b)
-      }
-    case a: AABB =>
-      b match {
-        case b: Circle2 => intersects(a, b)
-        case b: Arc2 => intersects(a, b)
-        case b: Segment2 => intersects(a, b)
-        case b: Polygon => intersects(a, b)
-        case b: AABB => intersects(a, b)
-      }
-  }
-  def intersects(a: Circle2, b: Circle2): Boolean = {
-    val d2 = (a.c -> b.c).lengthSquared
-    val rsum2 = (a.r + b.r) * (a.r + b.r)
-    d2 <= rsum2
-  }
-  def intersects(a: Arc2, b: Arc2): Boolean = ???
-  def intersects(a: Segment2, b: Segment2): Boolean = intersections(a, b).nonEmpty
-  def intersects(a: Polygon, b: Polygon): Boolean = ???
-  def intersects(a: AABB, b: AABB): Boolean =
-    a.lower.x <= b.upper.x &&
-    b.lower.x <= a.upper.x &&
-    a.lower.y <= b.upper.y &&
-    b.lower.y <= a.upper.y
-  @Reversible def intersects(a: Circle2, b: Arc2): Boolean = ???
-  @Reversible def intersects(a: Circle2, b: Segment2): Boolean = ???
-  @Reversible def intersects(a: Circle2, b: Polygon): Boolean = ???
-  @Reversible def intersects(a: Circle2, b: AABB): Boolean = ???
-  @Reversible def intersects(a: Arc2, b: Segment2): Boolean = ???
-  @Reversible def intersects(a: Arc2, b: Polygon): Boolean = ???
-  @Reversible def intersects(a: Arc2, b: AABB): Boolean = ???
-  @Reversible def intersects(a: Segment2, b: Polygon): Boolean = {
-    b.segments.exists(intersects(a, _))
-  }
-  @Reversible def intersects(a: Segment2, b: AABB): Boolean = ???
-  @Reversible def intersects(a: Polygon, b: AABB): Boolean = ???
-}
 
 /** A circle of radius `r` centered at `c`. */
 case class Circle2(c: Vec2, r: Double) extends Shape2 {
-  def toSVG: String = {
+  def toSVG: String =
     s"M ${c.x} ${c.y} m ${-r} 0 a $r,$r 0 1,1 ${r*2},0 a $r,$r 0 1,1 ${-r*2},0"
-  }
 
   def boundingBox = AABB(c - Vec2(r, r), c + Vec2(r, r))
 
@@ -400,42 +274,6 @@ case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
 
   def translate(v: Vec2): Segment2 = Segment2(a + v, b + v)
 
-  /*override def intersects(other: Shape2): Boolean = other match {
-    case c: Circle2 =>
-      (closestPointTo(c.c) - c.c).length <= c.r
-    case s: Segment2 => intersection(s).isDefined
-  }*/
-
-  def intersection(other: Segment2): Option[Vec2] = {
-    // http://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
-    val dir = a -> b
-    val otherDir = other.a -> other.b
-    val dxo = dir cross otherDir
-    if (dxo == 0) {
-      if (((a -> other.a) cross dir) == 0) {
-        // The two segments are collinear.
-        val t0 = ((a -> other.a) dot dir) / (dir dot dir)
-        val t1 = t0 + ((otherDir dot dir) / (dir dot dir))
-        if ((t1 > t0 && t0 <= 1 && t1 >= 0) || (t1 <= t0 && t1 <= 1 && t0 >= 0))
-          // collinear and intersecting, return average of all points so `a intersection b` == `b intersection a`
-          Some((a + b + other.a + other.b) / 4)
-        else
-          // collinear but not intersecting
-          None
-      } else {
-        // The two segments are parallel and non-intersecting.
-        None
-      }
-    } else {
-      val t = ((a -> other.a) cross otherDir) / dxo
-      val u = ((a -> other.a) cross dir) / dxo
-      if (0 <= t && t <= 1 && 0 <= u && u <= 1)
-        Some(a + dir * t)
-      else
-        None
-    }
-  }
-
   /** The point on this segment closest to `p`. */
   def closestPointTo(p: Vec2): Vec2 = {
     val l2 = (a - b).lengthSquared
@@ -459,9 +297,7 @@ case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
   def sample(t: Double) = a.lerp(b, t)
   def toPoints(numPoints: Int): Seq[Vec2] = (0 until numPoints) map { i => sample(i/(numPoints - 1).toDouble) }
 
-  def toSVG: String = {
-    s"M${a.x},${a.y} L${b.x},${b.y}"
-  }
+  def toSVG: String = s"M${a.x},${a.y} L${b.x},${b.y}"
 }
 
 
@@ -497,12 +333,7 @@ case class Polygon(points: Seq[Vec2]) extends Shape2 {
   /** The average of the vertices of this polygon. */
   def centroid: Vec2 = points.reduce(_ + _) / points.size
 
-  /*override def intersects(other: Shape2): Boolean = other match {
-    case seg: Segment2 =>
-      segments.exists(_ intersects seg)
-  }*/
-
-  lazy val aabb = {
+  lazy val aabb: AABB = {
     var lowerX = points.head.x
     var lowerY = points.head.y
     var upperX = points.head.x
@@ -548,9 +379,6 @@ object AABB {
   * `lower` must be <= `upper` in both dimensions.
   */
 case class AABB(lower: Vec2, upper: Vec2) extends Shape2 {
-  def subdivided(x: Int, y: Int): Seq[Vec2] =
-    for (i <- 0 until y; j <- 0 until x) yield lower + Vec2(width / x * j, height / y * i)
-
   require(lower.x <= upper.x && lower.y <= upper.y, s"Invalid AABB: $lower must be <= $upper")
 
   def width: Double = upper.x - lower.x
@@ -560,6 +388,7 @@ case class AABB(lower: Vec2, upper: Vec2) extends Shape2 {
   def center: Vec2 = lower + (upper - lower) * 0.5
 
   def toPolygon: Polygon = Polygon(Seq(lower, lower.copy(x = upper.x), upper, lower.copy(y = upper.y)))
+  def segments: Seq[Segment2] = toPolygon.segments.toSeq
 
   // TODO: better names for the below
   private def ll = lower
@@ -574,12 +403,23 @@ case class AABB(lower: Vec2, upper: Vec2) extends Shape2 {
   private def bottomEdge = Segment2(uu, lu)
   private def leftEdge = Segment2(lu, ll)
 
-  /** The point at which `seg` intersects the edges of this AABB.
-    * @todo not optimal.
-    * @return `None` if `seg` is totally contained within or totally outside the box.
-    *         <br>`Some(p)` where `p` is contained by the box otherwise.
+  /** True if `point` is contained within the AABB.
+    *
+    * Points exactly on the edge of the box are considered to be within the box.
     */
-  def intersection(seg: Segment2): Option[Vec2] = {
+  def contains(point: Vec2): Boolean =
+    point.x >= lower.x && point.x <= upper.x && point.y >= lower.y && point.y <= upper.y
+
+  def contains(circle: Circle2): Boolean = {
+    val Circle2(c, r) = circle
+    c.x - r >= lower.x && c.x + r <= upper.x && c.y - r >= lower.y && c.y + r <= upper.y
+  }
+
+  def contains(polygon: Polygon): Boolean = polygon.points.forall(this.contains)
+
+  def contains(seg: Segment2): Boolean = contains(seg.a) && contains(seg.b)
+
+  def liangBarsky(seg: Segment2): Option[Vec2] = {
     // Liang-Barsky
     // https://gist.github.com/ChickenProp/3194723
     val a = seg.a
@@ -608,43 +448,19 @@ case class AABB(lower: Vec2, upper: Vec2) extends Shape2 {
     Some(a + delta * u1)
   }
 
-  /*def intersects(other: AABB): Boolean = {
-    lower.x <= other.upper.x && other.lower.x <= upper.x && lower.y <= other.upper.y && other.lower.y <= upper.y
-  }
-
-  def intersects(circle: Circle2): Boolean = {
-    val Circle2(c, r) = circle
-    c.x + r >= lower.x && c.x - r <= upper.x && c.y + r >= lower.y && c.y - r <= upper.y
-  }*/
-
-  /** True if `point` is contained within the AABB.
-    *
-    * Points exactly on the edge of the box are considered to be within the box.
-    */
-  def contains(point: Vec2): Boolean =
-    point.x >= lower.x && point.x <= upper.x && point.y >= lower.y && point.y <= upper.y
-
-  def contains(circle: Circle2): Boolean = {
-    val Circle2(c, r) = circle
-    c.x - r >= lower.x && c.x + r <= upper.x && c.y - r >= lower.y && c.y + r <= upper.y
-  }
-
-  def contains(polygon: Polygon): Boolean = polygon.points.forall(contains(_))
-
-  def contains(seg: Segment2): Boolean = contains(seg.a) && contains(seg.b)
-
-
   /** Returns the largest subsegment that's completely contained within the AABB, if one exists. */
   def truncate(segment: Segment2): Option[Segment2] = {
-    if (contains(segment.a) && contains(segment.b)) return Some(segment)
-    if (contains(segment.a) && !contains(segment.b)) return Some(Segment2(segment.a, intersection(segment.reverse).get))
-    if (contains(segment.b) && !contains(segment.a)) return Some(Segment2(intersection(segment).get, segment.b))
-    val forwards = intersection(segment)
-    val backwards = intersection(segment.reverse)
+    val containsA = contains(segment.a)
+    val containsB = contains(segment.b)
+    if (containsA && containsB) return Some(segment)
+    if (containsA && !containsB) return Some(Segment2(segment.a, liangBarsky(segment.reverse).get))
+    if (!containsA && containsB) return Some(Segment2(liangBarsky(segment).get, segment.b))
+    val forwards = liangBarsky(segment)
+    val backwards = liangBarsky(segment.reverse)
     if (forwards.isEmpty || backwards.isEmpty)
-      return None
+      None
     else
-      return Some(Segment2(forwards.get, backwards.get))
+      Some(Segment2(forwards.get, backwards.get))
   }
 
   def truncate(polygon: Polygon): Seq[Segment2] = polygon.segments.flatMap(truncate(_)).toSeq
@@ -666,4 +482,8 @@ case class AABB(lower: Vec2, upper: Vec2) extends Shape2 {
   def shrink(k: Double): AABB = AABB(lower + Vec2(k, k), upper - Vec2(k, k))
 
   def translate(v: Vec2): AABB = AABB(lower + v, upper + v)
+
+  def subdivided(x: Int, y: Int): Seq[Vec2] =
+    for (i <- 0 until y; j <- 0 until x) yield lower + Vec2(width / x * j, height / y * i)
+
 }

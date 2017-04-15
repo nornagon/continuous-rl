@@ -1,11 +1,10 @@
 package kit
 
 import scala.collection.immutable.Seq
+import scala.meta.Type.Name
 import scala.meta._
 
-package Tweakable {
-
-  import scala.meta.Type.Name
+object Tweakable {
 
   class Range(start: Double, end: Double) extends scala.annotation.StaticAnnotation {}
   class Enum(names: String*) extends scala.annotation.StaticAnnotation {}

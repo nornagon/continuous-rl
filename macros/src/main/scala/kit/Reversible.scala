@@ -1,6 +1,7 @@
 package kit
 
 import scala.collection.immutable.Seq
+import scala.language.experimental.macros
 import scala.meta._
 
 class Reversible extends scala.annotation.StaticAnnotation {
@@ -10,3 +11,4 @@ class Reversible extends scala.annotation.StaticAnnotation {
     Term.Block(Seq(defn, reversed))
   }
 }
+
