@@ -1,8 +1,5 @@
-import com.lihaoyi.workbench.Plugin._
-
+enablePlugins(WorkbenchPlugin)
 enablePlugins(ScalaJSPlugin)
-
-workbenchSettings
 
 name := "GameKit game"
 
@@ -34,10 +31,6 @@ libraryDependencies ++= Seq(
   "com.lihaoyi" %%% "upickle" % "0.4.3",
   "com.lihaoyi" %%% "scalatags" % "0.6.1"
 )
-
-bootSnippet := """game.Main().main(document.getElementById("appRoot"));"""
-
-refreshBrowsers := { refreshBrowsers.triggeredBy(fastOptJS in Compile) }
 
 jsDependencies += ProvidedJS / "cp.js"
 jsDependencies += ProvidedJS / "d3-voronoi.js"
