@@ -23,7 +23,9 @@ object PCGTest extends JSApp {
     //new Symmetry(page, seed).symmetry(root)
     //new Horizon(page, seed).horizon(root)
     //new Substrate(page, seed).substrateSVG(root)
-    new CircleThing(page, seed).circle(root)
+    //new CircleThing(page, seed).circle(root)
+    //new ThreeDee(page, seed).three(root)
+    new Balaban(page, seed).three(root)
   }
 
   def withCanvas(root: html.Div, f: html.Canvas => Unit): Unit = {
