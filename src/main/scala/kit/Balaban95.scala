@@ -166,28 +166,27 @@ object Balaban95 {
     start
   }
 
-  private def treeSearch(endpoints: Seq[(Vec2, Segment2, SegmentSide)], Lv: Seq[Segment2], Iv: Seq[Segment2], b: Int, e: Int): (Seq[Segment2], Seq[Intersection]) = {
-    val bx = endpoints(b)._1.x
-    val ex = endpoints(e)._1.x
+  private def treeSearch(endpoints: Endpoints, Lv: Seq[Segment2], Iv: Seq[Segment2], b: Int, e: Int): (Seq[Segment2], Seq[Intersection]) = {
+    val bx = endpoints.x(b)
+    val ex = endpoints.x(e)
     if (e - b == 1) {
       return searchInStrip(Lv, bx, ex)
     }
     val (q, lls) = split(Lv, bx, ex)
     val c = (b + e) / 2
-    val cx = endpoints(c)._1.x
+    val cx = endpoints.x(c)
     val ils = Iv.filter(seg => seg.left.x > bx && seg.right.x < cx)
     val irs = Iv.filter(seg => seg.left.x > cx && seg.right.x < ex)
     val (rls, ixs) = treeSearch(endpoints, lls, ils, b, c)
-    val lrs = endpoints(c)._3 match {
-      case Left =>
-        val pos = loc(rls, endpoints(c)._2, cx, ex)
-        (rls.take(pos) :+ endpoints(c)._2) ++ rls.drop(pos)
-      case Right =>
-        val pos = rls.indexOf(endpoints(c)._2)
+    val lrs = mutable.Buffer.empty[Segment2] ++ rls
+    endpoints.events(c) foreach {
+      case (seg, Left) => // seg appears
+        val pos = loc(rls, seg, cx, ex)
+        lrs.insert(pos, seg)
+      case (seg, Right) => // seg goes away
+        val pos = lrs.indexOf(seg)
         if (pos >= 0)
-          rls.take(pos) ++ rls.drop(pos+1)
-        else
-          rls
+          lrs.remove(pos)
     }
     val (rrs, ixs2) = treeSearch(endpoints, lrs, irs, c, e)
 
@@ -198,22 +197,34 @@ object Balaban95 {
     (merge(q, rrs, ex), ixL ++ ixs ++ ixI ++ ixs2 ++ ixR)
   }
 
+  private case class Endpoints(
+    endpointXs: Seq[Double],
+    endpointSegs: Map[Double, Seq[(Segment2, SegmentSide)]]
+  ) {
+    require(endpointXs.size == endpointSegs.size)
+    def size: Int = endpointXs.size
+
+    def x(i: Int): Double = endpointXs(i)
+    def events(i: Int): Seq[(Segment2, SegmentSide)] = endpointSegs(x(i))
+  }
+
   def intersectingPairs(ss: Seq[Segment2]): Seq[Intersection] = {
     if (ss.isEmpty) return Seq.empty
-    val endpoints: Seq[(Vec2, Segment2, SegmentSide)] = ss flatMap { s =>
-      Seq(
-        (s.left, s, Left),
-        (s.right, s, Right)
-      )
-    } sortBy (_._1.x)
-    /*val endpointsg = SortedMap.empty ++ (ss flatMap { s =>
-      Seq(
-        (s.left, s, Left),
-        (s.right, s, Right)
-      )
-    } groupBy (_._1.x))*/
-    val Lr = Seq(endpoints.head._2)
-    val Ir = ss.filter(s => s != endpoints.last._2 && s != endpoints.head._2)
+    val m = mutable.Map.empty[Double, Seq[(Segment2, SegmentSide)]]
+    for (s <- ss) {
+      for (ep <- Seq((s.left, Left), (s.right, Right))) {
+        if (!m.contains(ep._1.x))
+          m.put(ep._1.x, Seq((s, ep._2)))
+        else
+          m(ep._1.x) :+= (s, ep._2)
+      }
+    }
+    val seq = m.keys.toSeq.sorted
+    val endpoints = Endpoints(seq, m.toMap)
+    val Lr = endpoints.endpointSegs(endpoints.endpointXs.head).map(_._1)
+    val left = endpoints.endpointXs.head
+    val right = endpoints.endpointXs.last
+    val Ir = ss.filter(s => s.a.x > left && s.a.x < right && s.b.x > left && s.b.x < right)
     val (_, ixs) = treeSearch(endpoints, Lr, Ir, 0, endpoints.size - 1)
     ixs
   }
