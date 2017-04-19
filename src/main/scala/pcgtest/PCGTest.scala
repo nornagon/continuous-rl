@@ -4,10 +4,11 @@ import kit.{Vec2, _}
 import org.scalajs.dom
 import org.scalajs.dom.html
 
+import scala.scalajs.js.JSApp
 import scala.scalajs.js.annotation.JSExport
 
 @JSExport
-object PCGTest {
+object PCGTest extends JSApp {
   //val page = AABB(Vec2(0, 0), Vec2(1200, 900))
   val page = AABB(Vec2(0, 0), Vec2(1000, 700))
   //val page = AABB(Vec2(0, 0), Vec2(830, 580))
@@ -32,5 +33,9 @@ object PCGTest {
     element.style.display = "block"
     root.appendChild(element)
     f(element)
+  }
+
+  override def main(): Unit = {
+    main(dom.document.getElementById("appRoot").asInstanceOf[html.Div])
   }
 }

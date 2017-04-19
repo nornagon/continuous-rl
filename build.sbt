@@ -1,5 +1,6 @@
 enablePlugins(WorkbenchPlugin)
 enablePlugins(ScalaJSPlugin)
+enablePlugins(ScalaJSBundlerPlugin)
 
 name := "GameKit game"
 
@@ -34,10 +35,14 @@ libraryDependencies ++= Seq(
   "com.lihaoyi" %%% "scalatags" % "0.6.1"
 )
 
-jsDependencies += ProvidedJS / "cp.js"
-jsDependencies += ProvidedJS / "d3-voronoi.js"
-jsDependencies += ProvidedJS / "dat.gui.js"
-jsDependencies += ProvidedJS / "quicksettings.min.js"
+jsDependencies in Compile += ProvidedJS / "cp.js"
+jsDependencies in Compile += ProvidedJS / "d3-voronoi.js"
+jsDependencies in Compile += ProvidedJS / "dat.gui.js"
+jsDependencies in Compile += ProvidedJS / "quicksettings.min.js"
+
+npmDependencies in Compile += "snabbdom" -> "0.5.3"
+enableReloadWorkflow := true
+emitSourceMaps := false
 
 lazy val macros = project.in(file("macros"))
   .settings(metaMacroSettings)
