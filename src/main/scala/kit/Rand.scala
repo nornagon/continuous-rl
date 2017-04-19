@@ -24,7 +24,9 @@ object RandomImplicits {
         between(bounds.lower.y, bounds.upper.y)
       )
 
-    def oneOf[K](options: K*) = options(between(0, options.size).floor.toInt)
+    def oneOf[K](options: K*): K = pick(options)
+    def nOf[K](n: Int, options: Seq[K]): Seq[K] = r.shuffle(options).take(n)
+    def pick[K](options: Seq[K]): K = options(between(0, options.size).floor.toInt)
     def pick[K](options: Iterable[K]): K = {
       var chosen = options.head
       var i = 1
