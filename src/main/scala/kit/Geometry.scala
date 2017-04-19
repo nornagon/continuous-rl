@@ -29,11 +29,11 @@ case class Vec2(x: Double, y: Double) {
 
   def ->(other: Vec2): Vec2 = other - this
 
-  def lengthSquared = x * x + y * y
-  def length = Math.sqrt(lengthSquared)
-  def normed = if (length == 0) Vec2(0, 0) else this / length
+  def lengthSquared: Double = x * x + y * y
+  def length: Double = Math.sqrt(lengthSquared)
+  def normed: Vec2 = if (length == 0) Vec2(0, 0) else this / length
 
-  def toAngle = Math.atan2(y, x)
+  def toAngle: Double = Math.atan2(y, x)
 
   def perp = Vec2(-y, x)
 
@@ -51,18 +51,41 @@ object Vec2 {
 }
 
 case class Vec3(x: Double, y: Double, z: Double) {
+  def toVec2: Vec2 = Vec2(x, y)
+
   def +(other: Vec3): Vec3 = Vec3(x + other.x, y + other.y, z + other.z)
   def -(other: Vec3): Vec3 = Vec3(x - other.x, y - other.y, z - other.z)
   def *(k: Double): Vec3 = Vec3(x * k, y * k, z * k)
-  def /(k: Double): Vec3 = Vec3(x / k, y / k, z * k)
+  def /(k: Double): Vec3 = Vec3(x / k, y / k, z / k)
 
   def dot(other: Vec3): Double = x * other.x + y * other.y + z * other.z
+  def cross(other: Vec3): Vec3 = Vec3(
+    y * other.z - z * other.y,
+    z * other.x - x * other.z,
+    x * other.y - y * other.x
+  )
+
 
   def ->(other: Vec3): Vec3 = other - this
 
-  def lengthSquared = x * x + y * y + z * z
-  def length = Math.sqrt(lengthSquared)
-  def normed = if (length == 0) Vec2(0, 0) else this / length
+  def lengthSquared: Double = x * x + y * y + z * z
+  def length: Double = Math.sqrt(lengthSquared)
+  def normed: Vec3 = if (length == 0) Vec3(0, 0, 0) else this / length
+}
+
+case class Vec4(x: Double, y: Double, z: Double, w: Double) {
+  def +(other: Vec4): Vec4 = Vec4(x + other.x, y + other.y, z + other.z, w + other.w)
+  def -(other: Vec4): Vec4 = Vec4(x - other.x, y - other.y, z - other.z, w - other.w)
+  def *(k: Double): Vec4 = Vec4(x * k, y * k, z * k, w * k)
+  def /(k: Double): Vec4 = Vec4(x / k, y / k, z * k, w * k)
+
+  def dot(other: Vec4): Double = x * other.x + y * other.y + z * other.z + w * other.w
+
+  def ->(other: Vec4): Vec4 = other - this
+
+  def lengthSquared: Double = x * x + y * y + z * z + w * w
+  def length: Double = Math.sqrt(lengthSquared)
+  def normed: Vec4 = if (length == 0) Vec4(0, 0, 0, 0) else this / length
 }
 
 
@@ -171,6 +194,130 @@ object Mat33 {
   def scale(v: Vec2): Mat33 = scale(v.x, v.y)
 }
 
+/** 4x4 Matrix
+  * ( a  b  c  d )
+  * ( e  f  g  h )
+  * ( i  j  k  l )
+  * ( m  n  o  p )
+  */
+case class Mat44(
+  a: Double, b: Double, c: Double, d: Double,
+  e: Double, f: Double, g: Double, h: Double,
+  i: Double, j: Double, k: Double, l: Double,
+  m: Double, n: Double, o: Double, p: Double
+) {
+  def *(v: Vec4): Vec4 = Vec4(
+    a * v.x + b * v.y + c * v.z + d * v.w,
+    e * v.x + f * v.y + g * v.z + h * v.w,
+    i * v.x + j * v.y + k * v.z + l * v.w,
+    m * v.x + n * v.y + o * v.z + p * v.w
+  )
+  def *(z: Mat44): Mat44 = Mat44(
+    a * z.a + b * z.e + c * z.i + d * z.m, a * z.b + b * z.f + c * z.j + d * z.n, a * z.c + b * z.g + c * z.k + d * z.o, a * z.d + b * z.h + c * z.l + d * z.p,
+    e * z.a + f * z.e + g * z.i + h * z.m, e * z.b + f * z.f + g * z.j + h * z.n, e * z.c + f * z.g + g * z.k + h * z.o, e * z.d + f * z.h + g * z.l + h * z.p,
+    i * z.a + j * z.e + k * z.i + l * z.m, i * z.b + j * z.f + k * z.j + l * z.n, i * z.c + j * z.g + k * z.k + l * z.o, i * z.d + j * z.h + k * z.l + l * z.p,
+    m * z.a + n * z.e + o * z.i + p * z.m, m * z.b + n * z.f + o * z.j + p * z.n, m * z.c + n * z.g + o * z.k + p * z.o, m * z.d + n * z.h + o * z.l + p * z.p
+  )
+  def *(z: Double): Mat44 = Mat44(
+    a * z, b * z, c * z, d * z,
+    e * z, f * z, g * z, h * z,
+    i * z, j * z, k * z, l * z,
+    m * z, n * z, o * z, p * z
+  )
+
+  def *(v: Vec3): Vec3 = this * Vec4(v.x, v.y, v.z, 1) match { case Vec4(x, y, z, w) => Vec3(x / w, y / w, z / w) }
+
+  def toSeq: Seq[Double] = Seq(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
+}
+object Mat44 {
+  def identity: Mat44 = Mat44(
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1
+  )
+  def rotate(xp: Double, yp: Double, zp: Double, a: Double): Mat44 = {
+    val c = math.cos(a)
+    val s = math.sin(a)
+    val Vec3(x, y, z) = Vec3(xp, yp, zp).normed
+    Mat44(
+      x*x*(1-c)+c, x*y*(1-c)-z*s, x*z*(1-c)+y*s, 0,
+      y*x*(1-c)+z*s, y*y*(1-c)+c, y*z*(1-c)-x*s, 0,
+      x*z*(1-c)-y*s, y*z*(1-c)+x*s, z*z*(1-c)+c, 0,
+      0, 0, 0, 1
+    )
+  }
+  def translate(tx: Double, ty: Double, tz: Double): Mat44 = Mat44(
+    1, 0, 0, tx,
+    0, 1, 0, ty,
+    0, 0, 1, tz,
+    0, 0, 0, 1
+  )
+  def translate(v: Vec3): Mat44 = translate(v.x, v.y, v.z)
+  def scale(k: Double): Mat44 = {
+    Mat44(
+      k, 0, 0, 0,
+      0, k, 0, 0,
+      0, 0, k, 0,
+      0, 0, 0, 1
+    )
+  }
+  def scale(x: Double, y: Double, z: Double): Mat44 = {
+    Mat44(
+      x, 0, 0, 0,
+      0, y, 0, 0,
+      0, 0, z, 0,
+      0, 0, 0, 1
+    )
+  }
+  def scale(v: Vec3): Mat44 = scale(v.x, v.y, v.z)
+
+  // https://github.com/jpbetz/subspace/blob/master/subspace/src/main/scala/com/github/jpbetz/subspace/Matrix4x4.scala
+  def perspective(fovRad: Double, aspect: Double, near: Double, far: Double): Mat44 = {
+    val fov = 1 / math.tan(fovRad / 2f).toFloat
+    Mat44(
+      fov / aspect, 0, 0, 0,
+      0, fov, 0, 0,
+      0, 0, (far + near) / (near - far), -1,
+      0, 0, (2 * far * near) / (near - far), 0)
+  }
+}
+
+case class Plane3(dir: Vec3, d: Double) {
+  def basis: (Vec3, Vec3) = {
+    val b1 = dir match {
+      case Vec3(0, _, _) => Vec3(1, 0, 0)  // parallel to x axis
+      case Vec3(_, 0, _) => Vec3(0, 1, 0)  // parallel to y axis
+      case Vec3(_, _, 0) => Vec3(0, 0, 1)  // parallel to z axis
+      case _ => Vec3(-dir.y, dir.x, 0).normed
+    }
+    val b2 = dir cross b1
+    (b1, b2)
+  }
+}
+object Plane3 {
+  def fromPointAndDir(point: Vec3, dir: Vec3): Plane3 =
+    Plane3(dir.normed, -(point dot dir.normed))
+
+  def fromPoints(p: Vec3, q: Vec3, r: Vec3): Plane3 = {
+    val dir = ((p - r) cross (q - r)).normed
+    Plane3(dir, -(dir dot r))
+  }
+}
+
+case class Tri3(a: Vec3, b: Vec3, c: Vec3) {
+  /** Radius of circle passing through a,b,c */
+  def radius: Double = {
+    val lengths = (a -> b).length * (b -> c).length * (c -> a).length
+    val area = ((a -> b) cross (a -> c)).length / 2
+    lengths / 4 * area
+  }
+
+  def plane: Plane3 = Plane3.fromPoints(a, b, c)
+
+  def circle: Circle3 = Circle3((a + b + c) / 3, radius, (a -> b) cross (a -> c))
+}
+
 sealed trait Shape2 {
   def intersects(other: Shape2): Boolean = Intersections.intersects(this, other)
   def intersections(other: Shape2): Iterable[Intersections.Intersection] = Intersections.intersections(this, other)
@@ -191,6 +338,25 @@ case class Circle2(c: Vec2, r: Double) extends Shape2 {
 
   def area: Double = Math.PI * r * r
 }
+
+case class Circle3 private (s: Sphere3, p: Plane3) {
+  def toPolygon(numPoints: Int): Polygon3 = {
+    val (a, b) = p.basis
+    Polygon3(
+      for (i <- 0 until numPoints)
+        yield (
+          a * math.cos(i.toDouble / numPoints * Math.PI * 2) +
+          b * math.sin(i.toDouble / numPoints * Math.PI * 2)
+        ) * s.r + s.c
+    )
+  }
+}
+object Circle3 {
+  def apply(center: Vec3, radius: Double, direction: Vec3): Circle3 =
+    Circle3(Sphere3(center, radius), Plane3.fromPointAndDir(center, direction))
+}
+
+case class Sphere3(c: Vec3, r: Double)
 
 case class Arc2(c: Vec2, rx: Double, ry: Double, rotation: Double, startAngle: Double, sweptAngle: Double) extends Shape2 {
   assert(rx == ry)
@@ -270,6 +436,13 @@ case class SVGArc(start: Vec2, end: Vec2, rx: Double, ry: Double, xRot: Double, 
 
 /** A segment beginning at `a` and ending at `b`. */
 case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
+  def left: Vec2 = if (a.x < b.x) a else b
+  def right: Vec2 = if (a.x < b.x) b else a
+
+  lazy val slope: Double = if (b.x == a.x) Double.PositiveInfinity else (b.y - a.y) / (b.x - a.x)
+  lazy val yIntercept: Double = if (b.x == a.x) Double.PositiveInfinity else a.y - slope * a.x
+  def yAtX(x: Double): Double = slope * x + yIntercept
+
   def reverse: Segment2 = Segment2(b, a)
 
   def translate(v: Vec2): Segment2 = Segment2(a + v, b + v)
@@ -298,6 +471,14 @@ case class Segment2(a: Vec2, b: Vec2) extends Shape2 {
   def toPoints(numPoints: Int): Seq[Vec2] = (0 until numPoints) map { i => sample(i/(numPoints - 1).toDouble) }
 
   def toSVG: String = s"M${a.x},${a.y} L${b.x},${b.y}"
+}
+
+case class Segment3(a: Vec3, b: Vec3) {
+  def reverse: Segment3 = Segment3(b, a)
+
+  def translate(v: Vec3): Segment3 = Segment3(a + v, b + v)
+
+  def length: Double = (a -> b).length
 }
 
 
@@ -367,6 +548,24 @@ object Polygon {
       Vec2(-width/2, height/2)
     ))
   }
+}
+
+case class Polygon3(points: Seq[Vec3]) {
+  /** Sequence of points representing the vertices of this polygon, with the final point equal to the first. */
+  def toPolyLine: Seq[Vec3] = points :+ points.head
+
+  /** Translate all the points in the polygon by `offset`. */
+  def translate(offset: Vec3): Polygon3 = Polygon3(points map (_ + offset))
+  /** Scale all the points in the polygon by `k`. */
+  def scale(k: Double): Polygon3 = Polygon3(points map (_ * k))
+
+  def transform(mat: Mat44): Polygon3 = Polygon3(points map (mat * _))
+
+  /** A sequence of segments representing the edges of this polygon. */
+  def segments = toPolyLine.sliding(2) map { case Seq(a, b) => Segment3(a, b) }
+
+  /** The average of the vertices of this polygon. */
+  def centroid: Vec3 = points.reduce(_ + _) / points.size
 }
 
 object AABB {
