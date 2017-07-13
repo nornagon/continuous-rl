@@ -1,6 +1,6 @@
 package snabbdom
 
-import org.scalajs.dom.Element
+import org.scalajs.dom.{Element, Text}
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSImport
@@ -37,12 +37,12 @@ object attributesModule extends js.Object {}
 
 @js.native
 class VNode(
-  sel: js.UndefOr[String],
-  data: js.UndefOr[VNodeData],
-  children: js.UndefOr[js.Array[VNode | String]],
-  //elm: js.UndefOr[Element | Text],
-  text: js.UndefOr[String],
-  key: js.Any
+  val sel: js.UndefOr[String],
+  val data: js.UndefOr[VNodeData],
+  val children: js.UndefOr[js.Array[VNode | String]],
+  val elm: js.UndefOr[Element | Text],
+  val text: js.UndefOr[String],
+  val key: js.Any
 ) extends js.Object
 
 @js.native

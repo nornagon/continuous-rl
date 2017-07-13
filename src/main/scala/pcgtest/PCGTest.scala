@@ -2,10 +2,13 @@ package pcgtest
 
 import kit.{AABB, Vec2}
 import org.scalajs.dom
-import org.scalajs.dom.html
+import org.scalajs.dom.{Element, html}
+import org.scalajs.dom.raw.MouseEvent
 
+import scala.scalajs.js
 import scala.scalajs.js.JSApp
 import scala.scalajs.js.annotation.JSExport
+import snabbdom.{VNode, dsl => *}
 
 @JSExport
 object PCGTest extends JSApp {
@@ -16,16 +19,48 @@ object PCGTest extends JSApp {
   val seed: Int = scala.util.Random.nextInt
   val r = new scala.util.Random(seed)
 
+  val experiments = Map(
+    "voronoi" -> { (root: html.Div) => new Voronoi(page, seed).voronoiSVG(root) },
+    "boxes" -> { (root: html.Div) => new Boxes(page, seed).boxes(root) },
+    "threedee" -> { (root: html.Div) => new ThreeDee(page, seed).three(root) }
+  )
+
   @JSExport
   def main(root: html.Div): Unit = {
-    root.innerHTML = ""  // Otherwise workbench update doesn't work properly
+    val hash = dom.window.location.hash.substring(1)
+    if (experiments contains hash) {
+      experiments(hash)(root)
+    } else {
+      var newRoot: VNode = null
+      val patch = snabbdom.snabbdom.init(js.Array(
+        snabbdom.attributesModule,
+        snabbdom.eventlistenersModule
+      ))
+      def render(): VNode = {
+        *.div(
+          "Choose:",
+          *.ul(
+            experiments.map {
+              case (name, fn) =>
+                *.li(*.a(name, *.onClick := { e: MouseEvent =>
+                  newRoot.elm.asInstanceOf[Element].innerHTML = ""
+                  dom.window.location.hash = name
+                  fn(newRoot.elm.asInstanceOf[html.Div])
+                }))
+            }
+          )
+        )
+      }
+      val vd = patch(root, render())
+      newRoot = vd
+    }
     //new Voronoi(page, seed).voronoiSVG(root)
     //new Boxes(page, seed).boxes(root)
     //new Symmetry(page, seed).symmetry(root)
     //new Horizon(page, seed).horizon(root)
     //new Substrate(page, seed).substrateSVG(root)
     //new CircleThing(page, seed).circle(root)
-    new ThreeDee(page, seed).three(root)
+    //new ThreeDee(page, seed).three(root)
     //new Balaban(page, seed).three(root)
     //new Writing(page).main(root)
     //new Particles(page, seed).particlesSVG(root)

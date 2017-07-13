@@ -6,6 +6,7 @@ import scala.scalajs.js
 import scala.scalajs.js.|
 
 object dsl {
+
   trait Modifier
   trait ChildModifier extends Modifier
   case class ChildVNodeModifier(child: VNode) extends ChildModifier
@@ -30,6 +31,7 @@ object dsl {
     override def :=(n: String) = AttributeModifier(k, n)
   }
   val className = attr("class")
+  val href = attr("href")
   val xmlns = attr("xmlns")
   val width = attr("width")
   val height = attr("height")
@@ -69,6 +71,10 @@ object dsl {
   }
 
   object div extends VNodeElement { val elementName = "div" }
+  object ul extends VNodeElement { val elementName = "ul" }
+  object ol extends VNodeElement { val elementName = "ol" }
+  object li extends VNodeElement { val elementName = "li" }
+  object a extends VNodeElement { val elementName = "a" }
   object button extends VNodeElement { val elementName = "button" }
   object svg extends SVGVNodeElement { val elementName = "svg" }
   object g extends SVGVNodeElement { val elementName = "g" }
