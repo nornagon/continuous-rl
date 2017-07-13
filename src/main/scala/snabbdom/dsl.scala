@@ -35,6 +35,8 @@ object dsl {
   val height = attr("height")
   val viewBox = attr("viewBox")
   val d = attr("d")
+  val transform = attr("transform")
+  val vectorEffect = attr("vector-effect")
   val cx = realAttr("cx")
   val cy = realAttr("cy")
   val r = realAttr("r")

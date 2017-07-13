@@ -509,7 +509,7 @@ case class Polygon(points: Seq[Vec2]) extends Shape2 {
   def area: Double = (segments.foldLeft(0.0) { (a, s) => a + (s.a cross s.b) } / 2).abs
 
   /** A sequence of segments representing the edges of this polygon. */
-  def segments = toPolyLine.sliding(2) map { case Seq(a, b) => Segment2(a, b) }
+  lazy val segments: List[Segment2] = (toPolyLine.sliding(2) map { case Seq(a, b) => Segment2(a, b) }).toList
 
   /** The average of the vertices of this polygon. */
   def centroid: Vec2 = points.reduce(_ + _) / points.size
@@ -677,6 +677,14 @@ case class AABB(lower: Vec2, upper: Vec2) extends Shape2 {
     Math.max(lower.y, Math.min(upper.y, point.y))
   )
 
+  def overlapArea(other: AABB): Double = {
+    val dx = math.min(upper.x, other.upper.x) - math.max(lower.x, other.lower.x)
+    val dy = math.min(upper.y, other.upper.y) - math.max(lower.y, other.lower.y)
+    if (dx > 0 && dy > 0)
+      dx * dy
+    else 0
+  }
+
   def expand(k: Double): AABB = AABB(lower - Vec2(k, k), upper + Vec2(k, k))
   def shrink(k: Double): AABB = AABB(lower + Vec2(k, k), upper - Vec2(k, k))
 
@@ -685,4 +693,7 @@ case class AABB(lower: Vec2, upper: Vec2) extends Shape2 {
   def subdivided(x: Int, y: Int): Seq[Vec2] =
     for (i <- 0 until y; j <- 0 until x) yield lower + Vec2(width / x * j, height / y * i)
 
+  def toSVG = toPolygon.toSVG
+  def scale(s: Double): AABB = scale(s, s)
+  def scale(sx: Double, sy: Double): AABB = AABB(lower.x * sx, lower.y * sy, upper.x * sx, upper.y * sy)
 }

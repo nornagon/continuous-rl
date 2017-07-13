@@ -45,6 +45,10 @@ object Intersections {
         Seq.empty
       }
     } else {
+      // If two segments are not collinear and meet at a common endpoint, return the common endpoint
+      // exactly.
+      if (a.a == b.a || a.a == b.b) return Seq(PointIntersection(a.a))
+      if (a.b == b.a || a.b == b.b) return Seq(PointIntersection(a.b))
       val t = ((a.a -> b.a) cross otherDir) / dxo
       val u = ((a.a -> b.a) cross dir) / dxo
       if (0 <= t && t <= 1 && 0 <= u && u <= 1)

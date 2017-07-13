@@ -14,7 +14,32 @@ class ThreeDee(page: AABB, seed: Int) {
       snabbdom.attributesModule,
       snabbdom.eventlistenersModule
     ))
-    def render(a: Double): VNode = {
+    def render(t: Double): VNode = {
+      val r = new scala.util.Random(seed)
+      val n = new kit.pcg.Noise(r.nextInt())
+      val n2 = new kit.pcg.Noise(r.nextInt())
+      val sx = 40
+      val pts = AABB(-1, -1, 1, 1).subdivided(sx, sx).map {
+        case Vec2(x, y) => Vec3(x, n.simplex2(x, y) * 0.2 + n2.simplex2(x * 2, y * 2) * 0.1, y)
+      }
+      val segs = pts.grouped(sx).flatMap(g => g.sliding(2).map { case Seq(a, b) => Segment3(a, b) }).toSeq ++ pts.grouped(sx).toList.transpose.flatMap(g => g.sliding(2).map { case Seq(a, b) => Segment3(a, b) })
+
+      val proj = Mat44.translate(page.center.x, page.center.y, 0) * Mat44.scale(40) * Mat44.perspective(math.Pi/3, 1, 0.1, 100)
+      val mv = Mat44.translate(0, 0, 4) * Mat44.rotate(0, 1, 0, t) * Mat44.scale(2) * Mat44.rotate(1, 0, 0, -Math.PI/4)
+      val camera = proj * mv
+      val seg2s = segs map { s => Segment2((camera * s.a).toVec2, (camera * s.b).toVec2) } filter (_ => r.nextDouble() < 0.5)
+      *.svg(
+        *.xmlns := "http://www.w3.org/2000/svg",
+        *.width := s"${page.width / 100.0}in",
+        *.height := s"${page.height / 100.0}in",
+        *.viewBox := s"0 0 ${page.width} ${page.height}",
+        *.attr("x-seed") := seed.toString,
+        *.g(
+          seg2s.map(s => *.path(*.d := s.toSVG))
+        )
+      )
+    }
+    def render2(a: Double): VNode = {
       val r = new scala.util.Random(seed)
       val proj = Mat44.translate(page.center.x, page.center.y, 0) * Mat44.scale(40) * Mat44.perspective(math.Pi/3, 1, 0.1, 100)
       val mv = Mat44.translate(0, 0, 4) * Mat44.rotate(a/3, a/2, 0, a) * Mat44.scale(2)
@@ -61,6 +86,9 @@ class ThreeDee(page: AABB, seed: Int) {
       }
       */
       val seg2s = segs map { s => Segment2((camera * s.a).toVec2, (camera * s.b).toVec2) }
+      val isects = Balaban95.intersectingPairs(seg2s.filter(s => s.a.x != s.b.x).map(s => Segment2(s.left, s.right)).distinct)
+      val eps = seg2s.view.flatMap(s => Seq(s.a, s.b)).toSet
+      val isectPoints = isects collect { case (_, _, Intersections.PointIntersection(p)) => p } filter (!eps.contains(_))
       *.svg(
         *.xmlns := "http://www.w3.org/2000/svg",
         *.width := s"${page.width / 100.0}in",
@@ -69,18 +97,23 @@ class ThreeDee(page: AABB, seed: Int) {
         *.attr("x-seed") := seed.toString,
         *.g(
           seg2s.map(s => *.path(*.d := s.toSVG))
+        ),
+        *.g(
+          isectPoints.map { p =>
+            *.circle(*.cx := p.x, *.cy := p.y, *.r := 3)
+          }
         )
       )
     }
 
-    var x = 0.0d
+    var time = 0.0d
     var prev: VNode = null
     val callback = (f: Double) => {
       if (prev != null)
-        prev = patch(prev, render(x))
+        prev = patch(prev, render(time))
       else
-        prev = patch(root, render(x))
-      x += 0.003
+        prev = patch(root, render(time))
+      time += 0.003
     }
     var frameReq: Int = -1
     def paused = frameReq < 0
@@ -97,7 +130,7 @@ class ThreeDee(page: AABB, seed: Int) {
       dom.window.cancelAnimationFrame(frameReq)
       frameReq = -1
     }
-    play()
+    callback(0)
     dom.window.onkeyup = (e: KeyboardEvent) => {
       if (e.keyCode == 0x20) {
         if (paused) play()

@@ -6,11 +6,11 @@ import scala.reflect.ClassTag
 class Item private () {
   private val components = mutable.Buffer.empty[ItemComponent]
 
-  def component[T: ClassTag] = components.collectFirst {
+  def component[T: ClassTag]: Option[T] = components.collectFirst {
     case t: T => t
   }
 
-  def apply[T: ClassTag] = component[T].get
+  def apply[T: ClassTag]: T = component[T].get
 }
 
 object Item {

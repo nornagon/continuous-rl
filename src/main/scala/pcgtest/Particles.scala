@@ -9,7 +9,7 @@ import kit.CanvasHelpers._
 import scala.collection.mutable
 
 class Particles(page: AABB, seed: Int) {
-
+  val margins = page.shrink(100)
   case class Particle(var p: Vec2, var v: Vec2, maxTrailLength: Double = 200) {
     val trail = mutable.Buffer[Vec2](p)
     def step(dt: Double, field: Vec2 => Vec2): Unit = {
