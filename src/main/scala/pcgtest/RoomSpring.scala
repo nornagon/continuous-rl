@@ -73,7 +73,7 @@ class RoomSpring(page: AABB, seed: Int) {
     for (a <- rooms.indices; b <- a + 1 until rooms.size) {
       val aRoom = rooms(a)
       val bRoom = rooms(b)
-      val overlap = math.sqrt(aRoom overlapArea bRoom)
+      val overlap = aRoom overlapArea bRoom
       if (overlap > 0) {
         val dir = (aRoom.center -> bRoom.center).normed
         forces(a) -= dir * overlap
@@ -127,19 +127,23 @@ class RoomSpring(page: AABB, seed: Int) {
       val height = r.between(3, 8)
       AABB(-width/2, -height/2, width/2, height/2).translate(r.withinCircle(5))
     }
-    val springs = (1 to rooms.size) map { _ =>
-      val a = r.between(0, rooms.size)
-      val b = r.between(0, rooms.size)
+    // put some springs in
+    val springs = (1 until rooms.size) map { a =>
+      val b = r.between(0, a)
       (a, b, r.between(0.2, 0.4))
     }
-    (rooms, springs)
+    // put some more springs in
+    val extraSprings = (0 until r.between(0, rooms.size / 2)) map { _ =>
+      val a = r.between(0, rooms.size)
+      val b = r.between(0, rooms.size)
+      (a, b, r.between(0.1, 0.3))
+    }
+    (rooms, springs ++ extraSprings)
   }
 
   def render(params: Params): VNode = {
     import params._
     val dt = 0.1
-
-    println(subtract(AABB(0, 0, 10, 10).toPolygon, AABB(5, 5, 10, 10).toPolygon))
 
     implicit val r = new scala.util.Random(seed)
 
@@ -167,7 +171,7 @@ class RoomSpring(page: AABB, seed: Int) {
       *.viewBox := s"0 0 ${page.width} ${page.height}",
       *.g(
         *.transform := s"translate(${margins.center.x}, ${margins.center.y}) scale(20)",
-        clippedRooms.flatten.map(r => *.path(*.d := r.toSVG, *.vectorEffect := "non-scaling-stroke")),
+        clippedRooms.flatten.map(r => *.path(*.d := r.toSVG, *.vectorEffect := "non-scaling-stroke", *.style := "fill: transparent; stroke: black")),
         fs.zip(evolvedRooms).map { case (f, r) => *.path(*.d := Segment2(r.center, r.center + f*dt).toSVG, *.vectorEffect := "non-scaling-stroke") }
       )
     )
@@ -175,7 +179,7 @@ class RoomSpring(page: AABB, seed: Int) {
 
   def main(root: html.Div): Unit = {
     var last: VNode | dom.Element = root
-    Params.tweakable() { p =>
+    Params.tweakable(time = 500) { p =>
       last = patch(last, render(p))
     }
   }

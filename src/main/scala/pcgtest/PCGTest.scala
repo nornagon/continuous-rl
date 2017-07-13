@@ -22,7 +22,8 @@ object PCGTest extends JSApp {
   val experiments = Map(
     "voronoi" -> { (root: html.Div) => new Voronoi(page, seed).voronoiSVG(root) },
     "boxes" -> { (root: html.Div) => new Boxes(page, seed).boxes(root) },
-    "threedee" -> { (root: html.Div) => new ThreeDee(page, seed).three(root) }
+    "threedee" -> { (root: html.Div) => new ThreeDee(page, seed).three(root) },
+    "roomspring" -> { (root: html.Div) => new RoomSpring(page, seed).main(root) }
   )
 
   @JSExport

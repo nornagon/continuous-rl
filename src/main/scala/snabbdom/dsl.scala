@@ -32,6 +32,7 @@ object dsl {
   }
   val className = attr("class")
   val href = attr("href")
+  val style = attr("style")
   val xmlns = attr("xmlns")
   val width = attr("width")
   val height = attr("height")
