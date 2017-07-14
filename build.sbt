@@ -29,7 +29,7 @@ lazy val metaMacroSettings: Seq[Def.Setting[_]] = Seq(
 scalaVersion := "2.11.8"
 
 libraryDependencies ++= Seq(
-  "org.scala-js" %%% "scalajs-dom" % "0.9.1",
+  "org.scala-js" %%% "scalajs-dom" % "0.9.3",
   "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
   "com.lihaoyi" %%% "upickle" % "0.4.3",
   "com.lihaoyi" %%% "scalatags" % "0.6.1"
@@ -43,6 +43,10 @@ jsDependencies in Compile += ProvidedJS / "clipper_unminified.js"
 npmDependencies in Compile += "snabbdom" -> "0.5.3"
 enableReloadWorkflow in Compile := true
 emitSourceMaps := false
+
+scalaJSUseMainModuleInitializer := true
+
+mainClass in Compile := Some("pcgtest.PCGTest")
 
 lazy val macros = project.in(file("macros"))
   .settings(metaMacroSettings)

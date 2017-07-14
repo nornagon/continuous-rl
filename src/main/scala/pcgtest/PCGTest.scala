@@ -2,16 +2,13 @@ package pcgtest
 
 import kit.{AABB, Vec2}
 import org.scalajs.dom
-import org.scalajs.dom.{Element, html}
 import org.scalajs.dom.raw.MouseEvent
-
-import scala.scalajs.js
-import scala.scalajs.js.JSApp
-import scala.scalajs.js.annotation.JSExport
+import org.scalajs.dom.{Element, html}
 import snabbdom.{VNode, dsl => *}
 
-@JSExport
-object PCGTest extends JSApp {
+import scala.scalajs.js
+
+object PCGTest {
   //val page = AABB(Vec2(0, 0), Vec2(1200, 900))
   //val page = AABB(Vec2(0, 0), Vec2(1000, 700))
   val page = AABB(Vec2(0, 0), Vec2(830, 580))
@@ -26,7 +23,6 @@ object PCGTest extends JSApp {
     "roomspring" -> { (root: html.Div) => new RoomSpring(page, seed).main(root) }
   )
 
-  @JSExport
   def main(root: html.Div): Unit = {
     val hash = dom.window.location.hash.substring(1)
     if (experiments contains hash) {
@@ -80,7 +76,7 @@ object PCGTest extends JSApp {
     f(element)
   }
 
-  override def main(): Unit = {
+  def main(): Unit = {
     main(dom.document.getElementById("appRoot").asInstanceOf[html.Div])
   }
 }

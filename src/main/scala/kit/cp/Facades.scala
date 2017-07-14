@@ -1,25 +1,25 @@
 package kit.cp
 
 import scala.scalajs.js
-import scala.scalajs.js.annotation.JSName
-import js.native
+import scala.scalajs.js.annotation.JSGlobal
+import scala.scalajs.js.native
 
 
-@JSName("cp.Vect")
+@JSGlobal("cp.Vect")
 @native
 class Vect(var x: Double, var y: Double) extends js.Object
 
-@JSName("cp.BB")
+@JSGlobal("cp.BB")
 @native
 class BB(var l: Double, var b: Double, var r: Double, var t: Double) extends js.Object
 
-@JSName("cp.BBTree")
+@JSGlobal("cp.BBTree")
 @native
 class BBTree(staticIndex: js.Any) extends js.Object {
   def query(bb: BB, func: js.Function1[Shape, Unit]): Unit = native
 }
 
-@JSName("cp.Shape")
+@JSGlobal("cp.Shape")
 @native
 class Shape(body: Body) extends js.Object {
   def setElasticity(e: Double): Unit = native
@@ -44,39 +44,39 @@ class Shape(body: Body) extends js.Object {
   val collisionCode: Int = native
 }
 
-@JSName("cp.PointQueryExtendedInfo")
+@JSGlobal("cp.PointQueryExtendedInfo")
 @native
 class PointQueryExtendedInfo(var shape: Shape) extends js.Object
 
-@JSName("cp.NearestPointQueryInfo")
+@JSGlobal("cp.NearestPointQueryInfo")
 @native
 class NearestPointQueryInfo(var shape: Shape, p: Vect, val d: Double) extends js.Object
 
-@JSName("cp.SegmentQueryInfo")
+@JSGlobal("cp.SegmentQueryInfo")
 @native
 class SegmentQueryInfo(var shape: Shape, var t: Double, var n: Vect) extends js.Object
 
-@JSName("cp.CircleShape")
+@JSGlobal("cp.CircleShape")
 @native
 class CircleShape(body: Body, radius: Double, var offset: Vect) extends Shape(body) {
   var r: Double = native
 }
 
-@JSName("cp.SegmentShape")
+@JSGlobal("cp.SegmentShape")
 @native
 class SegmentShape(body: Body, var a: Vect, var b: Vect, var r: Double) extends Shape(body)
 
-@JSName("cp.PolyShape")
+@JSGlobal("cp.PolyShape")
 @native
 class PolyShape(body: Body, var verts: js.Array[Double], var offset: Vect) extends Shape(body)
 
-@JSName("cp.BoxShape")
+@JSGlobal("cp.BoxShape")
 @native
 object BoxShape extends js.Object{
   def apply(body: Body, width: Double, height: Double): PolyShape = native
 }
 
-@JSName("cp.Body")
+@JSGlobal("cp.Body")
 @native
 class Body(val m: Double, val i: Double) extends js.Object {
   var a: Double = native
@@ -106,7 +106,7 @@ class Body(val m: Double, val i: Double) extends js.Object {
   def getVelAtPoint(p: Vect): Vect = native
 }
 
-@JSName("cp.CollisionHandler")
+@JSGlobal("cp.CollisionHandler")
 @native
 class CollisionHandler extends js.Object {
   var a: Shape = native
@@ -117,7 +117,7 @@ class CollisionHandler extends js.Object {
   var separate: (Arbiter, Space) => Boolean = native
 }
 
-@JSName("cp.Arbiter")
+@JSGlobal("cp.Arbiter")
 @native
 class Arbiter extends js.Object{
   def getShapes(): Seq[Shape] = native
@@ -130,7 +130,7 @@ class Arbiter extends js.Object{
   def isFirstContact(): Boolean = native
 }
 
-@JSName("cp.Space")
+@JSGlobal("cp.Space")
 @native
 class Space() extends js.Object{
   type CollisionHandler = js.Function2[Arbiter, Space, Unit]
@@ -172,56 +172,56 @@ class Space() extends js.Object{
 }
 
 // TODO: this isn't actually exposed as cp.Contact, only returned from some stuff
-@JSName("cp.Contact")
+@JSGlobal("cp.Contact")
 @native
 class Contact(var p: Vect, var n: Vect, var dist: Double, var hash: Int) extends js.Object
 
-@JSName("cp.Constraint")
+@JSGlobal("cp.Constraint")
 @native
 class Constraint(var a: Body, var b: Body) extends js.Object {
   def activateBodies(): js.Any = native
   var maxForce: Double = native
 }
 
-@JSName("cp.PinJoint")
+@JSGlobal("cp.PinJoint")
 @native
 class PinJoint(a: Body, b: Body, anchr1: Vect, anchr2: Vect) extends Constraint(a, b)
 
-@JSName("cp.SlideJoint")
+@JSGlobal("cp.SlideJoint")
 @native
 class SlideJoint(a: Body, b: Body, var anchr1: Vect, var anchr2: Vect, var min: Double, var max: Double) extends Constraint(a, b)
 
-@JSName("cp.PivotJoint")
+@JSGlobal("cp.PivotJoint")
 @native
 class PivotJoint(a: Body, b: Body, var anchr1: Vect, var anchr2: Vect) extends Constraint(a, b) {
   def this(a: Body, b: Body, pivot: Vect) = this(a, b, pivot, null)
 }
 
-@JSName("cp.GrooveJoint")
+@JSGlobal("cp.GrooveJoint")
 @native
 class GrooveJoint(a: Body, b: Body, groove_a: Vect, groove_b: Vect, anchr2: Vect) extends Constraint(a, b)
 
-@JSName("cp.DampedSpring")
+@JSGlobal("cp.DampedSpring")
 @native
 class DampedSpring(a: Body, b: Body, anchr1: Vect, anchr2: Vect, restLength: Double, stiffness: Double, damping: Double) extends Constraint(a, b)
 
-@JSName("cp.DampedRotarySpring")
+@JSGlobal("cp.DampedRotarySpring")
 @native
 class DampedRotarySpring(a: Body, b: Body, restAngle: Double, stiffness: Double, damping: Double) extends Constraint(a, b)
 
-@JSName("cp.RotaryLimitJoint")
+@JSGlobal("cp.RotaryLimitJoint")
 @native
 class RotaryLimitJoint(a: Body, b: Body, min: Double, max: Double) extends Constraint(a, b)
 
-@JSName("cp.RatchetJoint")
+@JSGlobal("cp.RatchetJoint")
 @native
 class RatchetJoint(a: Body, b: Body, phase: js.Any, ratchet: js.Any) extends Constraint(a, b)
 
-@JSName("cp.GearJoint")
+@JSGlobal("cp.GearJoint")
 @native
 class GearJoint(a: Body, b: Body, phase: js.Any, ratio: Double) extends Constraint(a, b)
 
-@JSName("cp.SimpleMotor")
+@JSGlobal("cp.SimpleMotor")
 @native
 class SimpleMotor(a: Body, b: Body, rate: Double) extends Constraint(a, b)
 

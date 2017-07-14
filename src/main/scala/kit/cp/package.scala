@@ -1,12 +1,12 @@
 package kit
 
 import scala.scalajs.js
-import scala.scalajs.js.annotation.JSName
-import js.native
+import scala.scalajs.js.annotation.JSGlobal
+import scala.scalajs.js.native
 
 
 package object cp {
-  @JSName("cp")
+  @JSGlobal("cp")
   @native
   object Cp extends js.Object {
     def momentForBox(m: Double, width: Double, height: Double): Double = native

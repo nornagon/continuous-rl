@@ -5,11 +5,10 @@ import game.items._
 import kit._
 import org.scalajs.dom
 import org.scalajs.dom._
+
 import scala.scalajs.js
-import scala.scalajs.js.annotation.JSExport
 
 
-@JSExport
 object Main {
   def makeTestWorld(): World = {
     val world = new World
@@ -52,6 +51,8 @@ object Main {
     }
     world.screenSize = Vec2(ctx.canvas.width, ctx.canvas.height)
     world.addEntity(new ZombieSpawner, Vec2(0, 0))
+
+    // Generate roads
     val s = new kit.pcg.Substrate(Set((Vec2(0, 0), 0.0)))
     while (s.deadSegments.size < 200) {
       s.step()
@@ -62,6 +63,8 @@ object Main {
     for (seg <- roads) {
       world.addEntity(new Road(seg), Vec2(0, 0))
     }
+
+    // Generate houses
     for (_ <- 1 to roads.size * 4) {
       val seg = Rand.oneOf(roads: _*)
       val t = Rand.between(0, seg.length / 500).floor * 500
@@ -90,6 +93,8 @@ object Main {
         }
       }
     }
+
+    // Generate trees
     for (_ <- 1 to Rand.between(roads.size * 4, roads.size * 8)) {
       val point = Rand.withinCircle(radius = 10000)
       val touching = roads.exists(seg => (seg.closestPointTo(point) -> point).length < 100)
@@ -98,6 +103,7 @@ object Main {
         tree.body.setAngle(Math.random() * Math.PI / 2)
       }
     }
+
     world
   }
   var world: World = _
@@ -121,7 +127,6 @@ object Main {
     dom.window.requestAnimationFrame(loop _)
   }
 
-  @JSExport
   def main(root: html.Div): Unit = {
 
     val itemDef = ItemDef(
@@ -163,5 +168,9 @@ object Main {
       world.mouseScreenPos = Vec2(e.clientX, e.clientY)
     })
     run()
+  }
+
+  def main(): Unit = {
+    main(dom.document.getElementById("appRoot").asInstanceOf[html.Div])
   }
 }
