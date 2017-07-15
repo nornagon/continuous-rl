@@ -31,11 +31,13 @@ object Intersections {
     if (dxo == 0) {
       if (((a.a -> b.a) cross dir) == 0) {
         // The two segments are collinear.
+        // t0 and t1 are the expressions of the endpoints of b in terms of the equation of a.
         val t0 = ((a.a -> b.a) dot dir) / (dir dot dir)
         val t1 = t0 + ((otherDir dot dir) / (dir dot dir))
         if ((t1 > t0 && t0 <= 1 && t1 >= 0) || (t1 <= t0 && t1 <= 1 && t0 >= 0)) {
-          // collinear and intersecting, return average of all points so `a intersection b` == `b intersection a`
-          Seq(SegmentIntersection(Segment2(???, ???)))
+          // collinear and intersecting, return overlapping part of the segment
+          // [t0, t1] overlaps [0, 1]
+          Seq(SegmentIntersection(Segment2(a.sample(math.max(t0, 0)), a.sample(math.min(t1, 1)))))
         } else {
           // collinear but not intersecting
           Seq.empty

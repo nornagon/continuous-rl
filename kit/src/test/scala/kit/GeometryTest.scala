@@ -1,5 +1,6 @@
 package kit
 
+import kit.Intersections.{PointIntersection, SegmentIntersection}
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Prop.{BooleanOperators, forAll}
 import org.scalacheck.{Arbitrary, Gen, Properties}
@@ -65,6 +66,12 @@ class GeometryTest extends Properties("Geometry") {
     } yield Mat44(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
   }
 
+  implicit class FuzzyComparableDouble(v: Double) {
+    def ~=(o: Double): Boolean = (v - o).abs <= 0.0000001
+  }
+  implicit class FuzzyComparableVec2(v: Vec2) {
+    def ~=(o: Vec2): Boolean = (v - o).lengthSquared <= 0.0000001
+  }
   implicit class FuzzyComparableVec3(v: Vec3) {
     def ~=(o: Vec3): Boolean = (v - o).lengthSquared <= 0.0000001
   }
@@ -85,4 +92,18 @@ class GeometryTest extends Properties("Geometry") {
   }
 
   property("Mat44 multiply") = forAll { (v: Vec4) => Mat44.identity * v == v }
+
+  private val smallDouble = Gen.choose(-100d, 100d)
+  property("collinear segments on the X axis") = forAll(smallDouble, smallDouble, smallDouble, smallDouble) { (a: Double, b: Double, c: Double, d: Double) =>
+    val seg0 = Segment2(Vec2(a, 0), Vec2(b, 0))
+    val seg1 = Segment2(Vec2(c, 0), Vec2(d, 0))
+    val intersections = Intersections.intersections(seg0, seg1)
+    val points = Set(a, b, c, d)
+    intersections match {
+      case Seq() => true
+      case Seq(PointIntersection(p)) => p.y == 0
+      case Seq(SegmentIntersection(seg)) =>
+        (points exists (_ ~= seg.a.x)) && (points exists (_ ~= seg.b.x))
+    }
+  }
 }
