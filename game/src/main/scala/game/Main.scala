@@ -3,6 +3,7 @@ package game
 import game.entities.{Building, Road, ZombieSpawner}
 import game.items._
 import kit._
+import kit.pcg.PoissonDisk
 import org.scalajs.dom
 import org.scalajs.dom._
 
@@ -95,8 +96,7 @@ object Main {
     }
 
     // Generate trees
-    for (_ <- 1 to Rand.between(roads.size * 4, roads.size * 8)) {
-      val point = Rand.withinCircle(radius = 10000)
+    PoissonDisk.generate(AABB(-10000, -10000, 10000, 10000), 400)(new scala.util.Random()) foreach { point =>
       val touching = roads.exists(seg => (seg.closestPointTo(point) -> point).length < 100)
       if (!touching) {
         val tree = world.addEntity(new entities.Tree, point)

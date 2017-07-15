@@ -14,9 +14,10 @@ object RandomImplicits {
     /** A point uniformly sampled from the origin-centered circle with the given `radius`.
       * http://stackoverflow.com/questions/5837572/generate-a-random-point-within-a-circle-uniformly
       */
-    def withinCircle(radius: Double = 1): Vec2 = {
+    def withinCircle(radius: Double = 1): Vec2 = withinAnnulus(0, radius)
+    def withinAnnulus(r0: Double, r1: Double): Vec2 = {
       val u = r.nextDouble() + r.nextDouble() match { case x if x > 1 => 2 - x; case x => x }
-      Vec2.forAngle(angle) * u * radius
+      Vec2.forAngle(angle) * (u * (r1 - r0) + r0)
     }
     def withinAABB(bounds: AABB): Vec2 =
       Vec2(

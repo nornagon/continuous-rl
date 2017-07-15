@@ -15,6 +15,10 @@ class Road(seg: Segment2) extends StaticEntity {
   override def layers: Int = 0
 
   override def draw(ctx: CanvasRenderingContext2D): Unit = {
+    ctx.strokePath("lightgray", lineWidth = 280) {
+      ctx.moveTo(seg.a)
+      ctx.lineTo(seg.b)
+    }
     ctx.strokePath("gray", lineWidth = 200) {
       ctx.moveTo(seg.a)
       ctx.lineTo(seg.b)

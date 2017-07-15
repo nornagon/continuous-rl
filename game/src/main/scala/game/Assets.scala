@@ -3,6 +3,7 @@ package game
 import org.scalajs.dom
 
 
+//noinspection TypeAnnotation
 object Assets {
   private def img(src: String) = {
     val i = dom.document.createElement("img").asInstanceOf[dom.raw.HTMLImageElement]
