@@ -102,6 +102,6 @@ class Particles(page: AABB, seed: Int) {
       update(1)
       render()
     }
-    dom.window.setInterval(frame _, 100)
+    dom.window.setInterval(() => { frame() }, 100)
   }
 }

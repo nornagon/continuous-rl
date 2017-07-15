@@ -27,7 +27,7 @@ object Tweakable {
                 case mod"@Tweakable.Range($low, $high)" =>
                   Seq(low, high) ++ (
                     v.decltpe match {
-                      case Some(t"Int") => Seq(Lit(1))
+                      case Some(t"Int") => Seq(q"1")
                       case _ => Seq()
                     }
                   )
@@ -36,10 +36,10 @@ object Tweakable {
               }.flatten
               val argToUpdate = Term.Arg.Named(
                 Term.Name(v.name.value),
-                q"opts.selectDynamic(${Lit(v.name.value)}).asInstanceOf[${v.decltpe.get.asInstanceOf[Name]}]"
+                q"opts.selectDynamic(${Lit.String(v.name.value)}).asInstanceOf[${v.decltpe.get.asInstanceOf[Name]}]"
               )
               q"""
-                gui.add(opts, ${Lit(v.name.value)}, ..$extra).onChange({ () =>
+                gui.add(opts, ${Lit.String(v.name.value)}, ..$extra).onChange({ () =>
                   latest = latest.copy($argToUpdate)
                   trigger(latest)
                 })

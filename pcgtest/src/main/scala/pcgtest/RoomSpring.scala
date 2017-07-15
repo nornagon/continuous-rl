@@ -4,21 +4,20 @@ import kit.RandomImplicits._
 import kit._
 import org.scalajs.dom
 import org.scalajs.dom.html
-import snabbdom.VNode
-import snabbdom.{dsl => *}
+import snabbdom.{VNode, dsl => *}
 
 import scala.collection.mutable
 import scala.scalajs.js
-import scala.scalajs.js.annotation.JSName
-import scala.scalajs.js.|
 import scala.scalajs.js.JSConverters._
+import scala.scalajs.js.annotation.JSGlobal
+import scala.scalajs.js.|
 
-@JSName("ClipperLib.IntPoint")
+@JSGlobal("ClipperLib.IntPoint")
 @js.native
 class IntPoint(val X: Double, val Y: Double) extends js.Object {
 }
 
-@JSName("ClipperLib.Clipper")
+@JSGlobal("ClipperLib.Clipper")
 @js.native
 class Clipper extends js.Object {
   def AddPaths(path: js.Array[js.Array[IntPoint]], polyType: Int, closed: Boolean): Unit = js.native
