@@ -6,8 +6,8 @@ import org.scalajs.dom.CanvasRenderingContext2D
 import kit.CanvasHelpers._
 
 
-class Tree() extends StaticEntity {
-  def shape = Seq(Circle2(Vec2(0, 0), 5).toPolygon(numPoints = 6))
+class Tree(radius: Double = 8) extends StaticEntity {
+  val shape = Seq(Circle2(Vec2(0, 0), radius).toPolygon(numPoints = 6))
 
   override val renderLayer: Int = RenderLayer.Top
 
@@ -15,6 +15,8 @@ class Tree() extends StaticEntity {
 
   override def draw(ctx: CanvasRenderingContext2D): Unit = {
     ctx.at(pos, body.a) {
+      val s = math.sqrt(radius / 8)
+      ctx.scale(s, s)
       ctx.drawImageCentered(Assets.tree, Vec2(0, 0))
     }
   }

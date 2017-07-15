@@ -3,7 +3,7 @@ package game
 import game.entities.{Building, Road, ZombieSpawner}
 import game.items._
 import kit._
-import kit.pcg.PoissonDisk
+import kit.pcg.{LayeredNoise, PoissonDisk}
 import org.scalajs.dom
 import org.scalajs.dom._
 
@@ -96,10 +96,11 @@ object Main {
     }
 
     // Generate trees
-    PoissonDisk.generate(AABB(-10000, -10000, 10000, 10000), 400)(new scala.util.Random()) foreach { point =>
+    val treeNoise = LayeredNoise.octaves(2)(new scala.util.Random())
+    PoissonDisk.generateModulated(AABB(-10000, -10000, 10000, 10000), v => treeNoise.at(v.x / 1200, v.y / 1200) * 280 + 320, 600)(new scala.util.Random()) foreach { point =>
       val touching = roads.exists(seg => (seg.closestPointTo(point) -> point).length < 100)
       if (!touching) {
-        val tree = world.addEntity(new entities.Tree, point)
+        val tree = world.addEntity(new entities.Tree(Rand.between(5, 12)), point)
         tree.body.setAngle(Math.random() * Math.PI / 2)
       }
     }

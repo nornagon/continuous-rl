@@ -1,6 +1,6 @@
 package pcgtest
 
-import kit.pcg.PoissonDisk
+import kit.pcg.{LayeredNoise, PoissonDisk}
 import kit.{AABB, Tweakable}
 import org.scalajs.dom
 import org.scalajs.dom.html
@@ -21,7 +21,13 @@ class BlueNoise(page: AABB, seed: Int) {
     @Tweakable.Range(1, 100)
     minDist: Double = 10,
     @Tweakable.Range(1, 100)
+    maxDist: Double = 10,
+    @Tweakable.Range(1, 100)
     maxPlacementAttempts: Int = 16,
+    @Tweakable.Range(10, 100)
+    scale: Int = 35,
+    @Tweakable.Range(1, 8)
+    octaves: Int = 4
   )
 
 
@@ -30,7 +36,17 @@ class BlueNoise(page: AABB, seed: Int) {
 
     implicit val r = new scala.util.Random(42)
 
-    val points = PoissonDisk.generate(margins, minDist, maxPlacementAttempts = maxPlacementAttempts)
+    //val points = PoissonDisk.generate(margins, minDist, maxPlacementAttempts = maxPlacementAttempts)
+    //val scale = 50
+    //val octaves = 4
+    val noise = LayeredNoise.octaves(octaves)
+    val points = PoissonDisk.generateModulated(
+      margins,
+      v => minDist + (maxDist - minDist) / 2 + noise.at(v.x / scale, v.y / scale) * (maxDist - minDist) / 2,
+      maxMinDist = maxDist,
+      //maxPlacements = 1000000,
+      maxPlacementAttempts = maxPlacementAttempts
+    )
 
     *.svg(
       *.xmlns := "http://www.w3.org/2000/svg",
