@@ -15,6 +15,7 @@ object dsl {
   implicit def vNodeToChildModifier(vnode: VNode): ChildVNodeModifier = ChildVNodeModifier(vnode)
   implicit def stringToChildModifier(str: String): ChildTextNodeModifier = ChildTextNodeModifier(str)
   implicit def iterableToChildrenModifier(children: Iterable[VNode]): ManyChildModifier = ManyChildModifier(children.map(ChildVNodeModifier))
+  implicit def iterableToChildrenModifier(children: Option[VNode]): ManyChildModifier = ManyChildModifier(children.map(ChildVNodeModifier))
 
   case class AttributeModifier(attr: String, value: String) extends Modifier
   trait AttrPartial {

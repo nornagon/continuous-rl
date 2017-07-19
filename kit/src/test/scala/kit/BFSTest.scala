@@ -34,4 +34,13 @@ class BFSTest extends PropSpec with GeneratorDrivenPropertyChecks with Matchers 
       path.get.last shouldBe p
     }
   }
+
+  property("reachable in finite grid") {
+    def links(p: (Int, Int)) = (p match { case (x, y) => Seq((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)) })
+      .filter { case (x, y) => math.abs(x) <= 10 && math.abs(y) <= 10 }
+    forAll(smallGridPoints) { (p: (Int, Int)) =>
+      val reachable = BFS.reachableFrom(p, links)
+      reachable should have size (10*10*4 + 10*4 + 1)
+    }
+  }
 }

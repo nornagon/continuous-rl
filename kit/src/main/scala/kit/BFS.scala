@@ -36,4 +36,22 @@ object BFS {
     }
     None
   }
+
+  def reachableFrom[T](from: T, links: T => Seq[T]): Set[T] = {
+    val q = mutable.Queue.empty[T]
+    val visited = mutable.Set.empty[T]
+    visited.add(from)
+    q.enqueue(from)
+    while (q.nonEmpty) {
+      val e = q.dequeue()
+      val ls = links(e)
+      for (n <- ls) {
+        if (!visited(n)) {
+          visited.add(n)
+          q.enqueue(n)
+        }
+      }
+    }
+    visited.toSet
+  }
 }

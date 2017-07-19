@@ -24,6 +24,9 @@ class City(page: AABB, seed: Int) {
     @Tweakable.Range(1, 10) octaves: Int = 2,
     @Tweakable.Range(20, 200) noisiness: Double = 100,
     @Tweakable.Range(0, 80) nExtra: Int = 20,
+    @Tweakable.Range(0, 1) tolerance: Double = 0.5,
+    @Tweakable.Range(0, 1000) nTrips: Int = 100,
+    showVoronoi: Boolean = false,
   )
 
   def render(params: Params): VNode = {
@@ -33,6 +36,7 @@ class City(page: AABB, seed: Int) {
     val poisNoise = LayeredNoise.octaves(octaves)
     val pois = PoissonDisk.generateModulated(margins, (v: Vec2) => math.max(15, math.min(120, poisNoise.at(v/s) * noisiness + 80)), 120)
 
+    /*
     val links = mutable.Buffer.empty[(Int, Int)]
     def canPlaceLink(newLink: (Int, Int)): Boolean = {
       if (links.contains(newLink) || links.contains((newLink._2, newLink._1)))
@@ -62,8 +66,41 @@ class City(page: AABB, seed: Int) {
         .headOption
       link foreach (l => links.append(l))
     }
+    */
+    val voronoiLinks: Seq[(Int, Int)] = Voronoi.computeD3Links(pois).filter(_.length <= 200).map {
+      case Segment2(a, b) => (pois.indexOf(a), pois.indexOf(b))
+    }
 
-    val linkSegments = links map { case (a, b) => Segment2(pois(a), pois(b)) }
+    val links = new mutable.HashMap[Int, mutable.Set[Int]] with mutable.MultiMap[Int, Int]
+    //for (_ <- 1 to nTrips) {
+    while (BFS.reachableFrom(0, (l: Int) => links.getOrElse(l, Set.empty).toSeq).size < pois.size) {
+      val source = r.between(0, pois.size)
+      val dest = r.between(0, pois.size)
+      if (source != dest) {
+        val existingPath = BFS.path[Int](source, l => links.getOrElse(l, Set.empty).toSeq, _ == dest)
+        val voronoiPath = BFS.path[Int](source, l => voronoiLinks.collect { case p if p._1 == l => p._2; case p if p._2 == l => p._1 }, _ == dest)
+        assert(voronoiPath.nonEmpty)
+        if (existingPath.isEmpty) {
+          for (Seq(a, b) <- voronoiPath.get.sliding(2)) {
+            links.addBinding(a, b)
+            links.addBinding(b, a)
+          }
+        } else {
+          assert(existingPath.isDefined)
+          val existingPathLength = existingPath.get.sliding(2).map { case Seq(a, b) => (pois(a) -> pois(b)).length }.sum
+          val voronoiPathLength = voronoiPath.get.sliding(2).map { case Seq(a, b) => (pois(a) -> pois(b)).length }.sum
+          if (voronoiPathLength < existingPathLength * (1 - tolerance)) {
+            for (Seq(a, b) <- voronoiPath.get.sliding(2)) {
+              links.addBinding(a, b)
+              links.addBinding(b, a)
+            }
+          }
+        }
+      }
+    }
+
+    val voronoiLinkSegments: Seq[Segment2] = voronoiLinks.map { case (a, b) => Segment2(pois(a), pois(b)) }
+    val linkSegments: Seq[Segment2] = links.flatMap({ case (a, bs) => (bs map { b => Segment2(pois(a), pois(b)) })(collection.breakOut) })(collection.breakOut)
 
     *.div(
       *.svg(
@@ -73,10 +110,15 @@ class City(page: AABB, seed: Int) {
         *.viewBox := s"0 0 ${page.width} ${page.height}",
         *.g(
           pois.map(p => *.circle(*.cx := p.x, *.cy := p.y, *.r := 1, *.style := "fill: transparent; stroke: black;")),
+          if (showVoronoi)
+            voronoiLinkSegments.map {
+              case Segment2(src, tgt) =>
+                *.path(*.d := s"M${src.x},${src.y} L${tgt.x},${tgt.y}", *.style := "stroke: lightgray; stroke-width: 3")
+            } else None,
           linkSegments.map {
             case Segment2(src, tgt) =>
               *.path(*.d := s"M${src.x},${src.y} L${tgt.x},${tgt.y}")
-          }
+          },
         )
       )
     )
