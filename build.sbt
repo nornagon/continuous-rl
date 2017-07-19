@@ -1,4 +1,3 @@
-enablePlugins(WorkbenchPlugin)
 enablePlugins(ScalaJSPlugin)
 enablePlugins(ScalaJSBundlerPlugin)
 
@@ -59,7 +58,7 @@ lazy val game = project
     mainClass in Compile := Some("game.Main")
   )
   .dependsOn(kit)
-  .enablePlugins(WorkbenchPlugin, ScalaJSPlugin, ScalaJSBundlerPlugin)
+  .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
 
 lazy val macros = project.in(file("macros"))
   .settings(metaMacroSettings)
@@ -73,7 +72,8 @@ lazy val pcgtest = project
     jsDependencies in Compile += ProvidedJS / "dat.gui.js",
     jsDependencies in Compile += ProvidedJS / "clipper_unminified.js",
     scalaJSUseMainModuleInitializer := true,
-    mainClass in Compile := Some("pcgtest.PCGTest")
+    mainClass in Compile := Some("pcgtest.PCGTest"),
+    webpackDevServerExtraArgs in fastOptJS ++= Seq("--content-base", (baseDirectory in ThisBuild).value.getAbsolutePath, "--inline")
   )
   .dependsOn(kit, snabbdom, macros)
-  .enablePlugins(WorkbenchPlugin, ScalaJSPlugin, ScalaJSBundlerPlugin)
+  .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
