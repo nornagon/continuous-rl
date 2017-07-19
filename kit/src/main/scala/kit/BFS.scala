@@ -7,7 +7,7 @@ object BFS {
     path(from, links, pred).map(_.last)
   }
 
-  def path[T](from: T, links: T => Seq[T], pred: T => Boolean): Option[Seq[T]] = {
+  def path[T](from: T, links: T => Iterable[T], pred: T => Boolean): Option[Seq[T]] = {
     if (pred(from))
       return Some(Seq(from))
     val q = mutable.Queue.empty[T]
