@@ -1,9 +1,11 @@
 package kit
 
-import org.scalacheck.Prop.{BooleanOperators, forAll}
-import org.scalacheck.{Arbitrary, Gen, Properties}
+import org.scalacheck.{Arbitrary, Gen}
+import org.scalatest.matchers.{MatchResult, Matcher}
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
+import org.scalatest.{Matchers, PropSpec}
 
-class Balaban95Test extends Properties("Balaban95") {
+class Balaban95Test extends PropSpec with GeneratorDrivenPropertyChecks with Matchers {
   implicit lazy val arbVec2: Arbitrary[Vec2] = Arbitrary {
     for {
       x <- Gen.choose(-100, 100)
@@ -37,23 +39,40 @@ class Balaban95Test extends Properties("Balaban95") {
     as.forall(ix => bs.exists(ixsEqual(_, ix))) && bs.forall(ix => as.exists(ixsEqual(_, ix)))
   }
 
-  property("two segments") = forAll { (a: Segment2, b: Segment2) =>
-    val balabanIxs = Balaban95.intersectingPairs(Seq(a, b))
-    val naiveIxs = Balaban95.naiveIntersectingPairs(Seq(a, b))
-    s"\nBalabanIXs $balabanIxs\nNaiveIXs $naiveIxs\n" |: ixsetsEqual(balabanIxs, naiveIxs)
+  def ixMatch(right: Seq[(Segment2, Segment2, Intersections.Intersection)]) = new Matcher[Seq[(Segment2, Segment2, Intersections.Intersection)]] {
+    override def apply(left: Seq[(Segment2, Segment2, Intersections.Intersection)]): MatchResult = {
+      val result = MatchResult(
+        ixsetsEqual(left, right),
+        s"$left did not ixMatch $right",
+        s"$left ixMatched $right"
+      )
+      result
+    }
   }
 
-  property("three segments") = forAll { (a: Segment2, b: Segment2, c: Segment2) =>
-    val balabanIxs = Balaban95.intersectingPairs(Seq(a, b, c))
-    val naiveIxs = Balaban95.naiveIntersectingPairs(Seq(a, b, c))
-    s"\nBalabanIXs $balabanIxs\nNaiveIXs $naiveIxs\n" |: ixsetsEqual(balabanIxs, naiveIxs)
+  property("two segments") {
+    forAll { (a: Segment2, b: Segment2) =>
+      val balabanIxs = Balaban95.intersectingPairs(Seq(a, b))
+      val naiveIxs = Balaban95.naiveIntersectingPairs(Seq(a, b))
+      balabanIxs should ixMatch (naiveIxs)
+    }
   }
 
-  property("N segments") = forAll { (segs: Seq[Segment2]) =>
-    !segs.exists(s => s.a.x == s.b.x) ==> {
-      val balabanIxs = Balaban95.intersectingPairs(segs)
-      val naiveIxs = Balaban95.naiveIntersectingPairs(segs)
-      s"\nBalabanIXs $balabanIxs\nNaiveIXs $naiveIxs\n" |: ixsetsEqual(balabanIxs, naiveIxs)
+  property("three segments") {
+    forAll { (a: Segment2, b: Segment2, c: Segment2) =>
+      val balabanIxs = Balaban95.intersectingPairs(Seq(a, b, c))
+      val naiveIxs = Balaban95.naiveIntersectingPairs(Seq(a, b, c))
+      balabanIxs should ixMatch (naiveIxs)
+    }
+  }
+
+  property("N segments") {
+    forAll { (segs: Seq[Segment2]) =>
+      whenever(!segs.exists(s => s.a.x == s.b.x)) {
+        val balabanIxs = Balaban95.intersectingPairs(segs)
+        val naiveIxs = Balaban95.naiveIntersectingPairs(segs)
+        balabanIxs should ixMatch (naiveIxs)
+      }
     }
   }
 
@@ -78,7 +97,7 @@ class Balaban95Test extends Properties("Balaban95") {
   }
   */
 
-  property("Proof that merge was broken") = {
+  property("Proof that merge was broken") {
     val segs = Seq(
       Segment2(Vec2(-22.00, 61.00), Vec2(36.00, 12.00)),
       Segment2(Vec2(-7.00, -92.00), Vec2(32.00, -3.00)),
@@ -88,10 +107,10 @@ class Balaban95Test extends Properties("Balaban95") {
     )
     val balabanIxs = Balaban95.intersectingPairs(segs)
     val naiveIxs = Balaban95.naiveIntersectingPairs(segs)
-    s"\nBalabanIXs $balabanIxs\nNaiveIXs $naiveIxs\n" |: ixsetsEqual(balabanIxs, naiveIxs)
+    balabanIxs should ixMatch (naiveIxs)
   }
 
-  property("Multiple segments appearing at the same x") = {
+  property("Multiple segments appearing at the same x") {
     val segs = Seq(
       Segment2(Vec2(-28.00, -97.00), Vec2(52.00, 78.00)),
       Segment2(Vec2(-8.00, -36.00), Vec2(55.00, -42.00)),
@@ -99,26 +118,26 @@ class Balaban95Test extends Properties("Balaban95") {
     )
     val balabanIxs = Balaban95.intersectingPairs(segs)
     val naiveIxs = Balaban95.naiveIntersectingPairs(segs)
-    s"\nBalabanIXs $balabanIxs\nNaiveIXs $naiveIxs\n" |: ixsetsEqual(balabanIxs, naiveIxs)
+    balabanIxs should ixMatch (naiveIxs)
   }
 
-  property("Start = finish") = {
+  property("Start = finish") {
     val segs = Seq(
       Segment2(Vec2(36.00, 0.00), Vec2(64.00, -15.00)),
       Segment2(Vec2(64.00, -15.00), Vec2(83.00, -82.00))
     )
     val balabanIxs = Balaban95.intersectingPairs(segs)
     val naiveIxs = Balaban95.naiveIntersectingPairs(segs)
-    s"\nBalabanIXs $balabanIxs\nNaiveIXs $naiveIxs\n" |: ixsetsEqual(balabanIxs, naiveIxs)
+    balabanIxs should ixMatch (naiveIxs)
   }
 
-  property("Bug with insertion") = {
+  property("Bug with insertion") {
     val segs = Seq(
       Segment2(Vec2(-67.00, 98.00), Vec2(73.00, -60.00)),
       Segment2(Vec2(-67.00, 5.00), Vec2(20.00, -44.00))
     )
     val balabanIxs = Balaban95.intersectingPairs(segs)
     val naiveIxs = Balaban95.naiveIntersectingPairs(segs)
-    s"\nBalabanIXs $balabanIxs\nNaiveIXs $naiveIxs\n" |: ixsetsEqual(balabanIxs, naiveIxs)
+    balabanIxs should ixMatch (naiveIxs)
   }
 }
