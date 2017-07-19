@@ -1,11 +1,10 @@
 package kit.pcg
 
-import kit.{AABB, Vec2}
 import kit.RandomImplicits._
+import kit.{AABB, Vec2}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import scala.scalajs.js.Date
 import scala.util.Random
 
 /**
@@ -18,6 +17,7 @@ import scala.util.Random
   * - http://www.redblobgames.com/articles/noise/introduction.html, where I discovered this technique
   * - http://www.cs.virginia.edu/~gfx/pubs/antimony/antimony.pdf, "A spatial data structure for fast poisson-disk sample generation"
   *   Daniel Dunbar & Greg Humphreys, UVa
+  * - http://nkhademi.com/Papers/EGSR12_FastApproximateBlueNoise.pdf for a possible way of approaching unbounded noise
   */
 object PoissonDisk {
   private val MaxPlacementAttempts = 16
@@ -148,9 +148,6 @@ object PoissonDisk {
       }
       numPlacements += 1
     }
-
-    println(active.size)
-    println(numPlacements)
 
     grid.cells.filter(_ != null).toSeq.flatten
   }

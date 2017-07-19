@@ -1,6 +1,9 @@
 package kit.pcg
 
+import kit.Vec2
+
 class LayeredNoise(noises: Seq[(Double, Double) => Double]) {
+  def at(v: Vec2): Double = at(v.x, v.y)
   def at(x: Double, y: Double): Double = {
     val d = (0d /: noises) {
       _ + _ (x, y)
