@@ -21,6 +21,18 @@ object Voronoi {
       Polygon(p.map { arr => Vec2(arr(0), arr(1)) })
     }
   }
+
+  def computeD3Links(sites: Iterable[Vec2]): Seq[Segment2] = {
+    val jsSites: js.Array[js.Array[Double]] = sites.map(v => js.Array(v.x, v.y))(collection.breakOut)
+    val voronoi = d3.voronoi()
+    val diagram = voronoi(jsSites)
+    val links: js.Array[js.Dynamic] = diagram.links().asInstanceOf[js.Array[js.Dynamic]]
+    for (l <- links) yield {
+      val src = l.source.asInstanceOf[js.Array[Double]]
+      val tgt = l.target.asInstanceOf[js.Array[Double]]
+      Segment2(Vec2(src(0), src(1)), Vec2(tgt(0), tgt(1)))
+    }
+  }
 }
 
 class Voronoi(sites: Seq[Vec2]) {
