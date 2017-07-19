@@ -8,6 +8,8 @@ object BFS {
   }
 
   def path[T](from: T, links: T => Seq[T], pred: T => Boolean): Option[Seq[T]] = {
+    if (pred(from))
+      return Some(Seq(from))
     val q = mutable.Queue.empty[T]
     val visits = mutable.Map.empty[T, T]
     visits.update(from, from)
