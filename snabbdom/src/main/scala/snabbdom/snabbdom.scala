@@ -55,10 +55,12 @@ object VNodeData {
   def apply(
     attrs: js.UndefOr[js.Any],
     on: js.UndefOr[js.Any],
+    hook: js.UndefOr[js.Any],
     ns: js.UndefOr[String] = js.undefined
   ): VNodeData = js.Dynamic.literal(
     attrs = attrs,
     on = on,
+    hook = hook,
     ns = ns
   ).asInstanceOf[VNodeData]
 }

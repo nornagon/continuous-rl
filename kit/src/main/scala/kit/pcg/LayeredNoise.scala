@@ -17,7 +17,7 @@ object LayeredNoise {
   def octaves(n: Int)(implicit r: scala.util.Random): LayeredNoise = {
     new LayeredNoise(for (o <- 1 to n) yield {
       val noise = new Noise(r.nextInt())
-      val s = math.pow(2, -o)
+      val s = math.pow(2, o)
       (x: Double, y: Double) => noise.simplex2(x * s, y * s) / n
     })
   }

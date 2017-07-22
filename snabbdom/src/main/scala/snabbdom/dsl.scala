@@ -25,18 +25,15 @@ object dsl {
     def :=(n: String): AttributeModifier
     def :=(n: Double): AttributeModifier = this.:=(n.toString)
   }
-  def attr(k: String): AttrPartial = new AttrPartial {
-    override def :=(n: String) = AttributeModifier(k, n)
-  }
-  def realAttr(k: String): RealAttrPartial = new RealAttrPartial {
-    override def :=(n: String) = AttributeModifier(k, n)
-  }
+  def attr(k: String): AttrPartial = (n: String) => AttributeModifier(k, n)
+  def realAttr(k: String): RealAttrPartial = (n: String) => AttributeModifier(k, n)
+
   val className = attr("class")
   val href = attr("href")
   val style = attr("style")
   val xmlns = attr("xmlns")
-  val width = attr("width")
-  val height = attr("height")
+  val width = realAttr("width")
+  val height = realAttr("height")
   val viewBox = attr("viewBox")
   val d = attr("d")
   val transform = attr("transform")
@@ -48,6 +45,11 @@ object dsl {
   case class EventListenerModifier(event: String, listener: js.Function1[_ <: Event, _]) extends Modifier
   object onClick { def :=(f: js.Function1[MouseEvent, _]): EventListenerModifier = EventListenerModifier("click", f) }
 
+  case class UpdateHookModifier(callback: js.Function2[VNode, VNode, _]) extends Modifier
+  object hookUpdate { def :=(f: js.Function2[VNode, VNode, _]): UpdateHookModifier = UpdateHookModifier(f) }
+  case class InsertHookModifier(callback: js.Function1[VNode, _]) extends Modifier
+  object hookInsert { def :=(f: js.Function1[VNode, _]): InsertHookModifier = InsertHookModifier(f) }
+
   trait VNodeElement {
     def elementName: String
     def ns: js.UndefOr[String] = js.undefined
@@ -55,6 +57,7 @@ object dsl {
       val children = js.Array[VNode | String]()
       val attrs = js.Dictionary[String]()
       val listeners = js.Dictionary[js.Function1[_ <: Event, _]]()
+      val hook = js.Dictionary[js.Any]()
       for (mod <- mods) {
         mod match {
           case ChildVNodeModifier(child) => children.push(child)
@@ -63,9 +66,15 @@ object dsl {
             for (child <- cs) children.push(child.child)
           case AttributeModifier(attr, value) => attrs.update(attr, value)
           case EventListenerModifier(event, listener) => listeners.update(event, listener)
+          case UpdateHookModifier(listener) => hook.update("update", listener)
+          case InsertHookModifier(listener) => hook.update("insert", listener)
         }
       }
-      VNode.vnode(elementName, data = VNodeData(attrs = attrs, on = listeners, ns = ns), children = children)
+      VNode.vnode(
+        elementName,
+        data = VNodeData(attrs = attrs, on = listeners, ns = ns, hook = hook),
+        children = children
+      )
     }
   }
   trait SVGVNodeElement extends VNodeElement {
@@ -73,6 +82,7 @@ object dsl {
   }
 
   object div extends VNodeElement { val elementName = "div" }
+  object canvas extends VNodeElement { val elementName = "canvas" }
   object ul extends VNodeElement { val elementName = "ul" }
   object ol extends VNodeElement { val elementName = "ol" }
   object li extends VNodeElement { val elementName = "li" }

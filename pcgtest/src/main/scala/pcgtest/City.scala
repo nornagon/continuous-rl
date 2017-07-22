@@ -5,6 +5,8 @@ import kit._
 import kit.RandomImplicits._
 import org.scalajs.dom
 import org.scalajs.dom.html
+import org.scalajs.dom.raw.CanvasRenderingContext2D
+import snabbdom.dsl.AttributeModifier
 import snabbdom.{VNode, dsl => *}
 
 import scala.collection.mutable
@@ -27,6 +29,7 @@ class City(page: AABB, seed: Int) {
     @Tweakable.Range(0, 1) tolerance: Double = 0.5,
     @Tweakable.Range(0, 1000) nTrips: Int = 100,
     showVoronoi: Boolean = false,
+    showDensity: Boolean = false,
   )
 
   def render(params: Params): VNode = {
@@ -42,7 +45,6 @@ class City(page: AABB, seed: Int) {
 
     val linkConns = new mutable.HashMap[Int, mutable.Set[Int]] with mutable.MultiMap[Int, Int]
     val linkWeights = mutable.Map.empty[(Int, Int), Int].withDefault(_ => 0)
-    //for (_ <- 1 to nTrips) {
     var nLinks = 0
     while (BFS.reachableFrom(0, (l: Int) => linkConns.getOrElse(l, Set.empty).toSeq).size < pois.size || nLinks < nTrips) {
       nLinks += 1
@@ -53,9 +55,7 @@ class City(page: AABB, seed: Int) {
           linkConns.getOrElse(l, Set.empty).map(c => (c, (pois(l) -> pois(c)).length)) ++
             voronoiLinks.collect { case p if p._1 == l => p._2; case p if p._2 == l => p._1 }.map(c => (c, (pois(l) -> pois(c)).length * 2))
         }, _ == dest)
-        println(voronoiPath)
         val existingPath = BFS.path[Int](source, l => linkConns.getOrElse(l, Set.empty).toSeq, _ == dest)
-        //val voronoiPath = BFS.path[Int](source, l => voronoiLinks.collect { case p if p._1 == l => p._2; case p if p._2 == l => p._1 }, _ == dest)
         assert(voronoiPath.nonEmpty, "there must be a path through the voronoi links")
         if (existingPath.isEmpty) {
           for (Seq(a, b) <- voronoiPath.get.sliding(2)) {
@@ -84,11 +84,27 @@ class City(page: AABB, seed: Int) {
 
     val voronoiLinkSegments: Seq[Segment2] = voronoiLinks.map { case (a, b) => Segment2(pois(a), pois(b)) }
     val links = linkConns.flatMap { case (a, bs) => bs.map(b => (math.min(a, b), math.max(a, b)))(collection.breakOut) }(collection.breakOut)
-    val linkSegments = links.map { case (a, b) => Segment2(pois(a), pois(b)) }
-
 
     *.div(
+      *.style := "position: relative",
+      if (showDensity)
+        image(*.width := page.width, *.height := page.height, *.style := "position: absolute; top: 0; left: 0") { (ctx: CanvasRenderingContext2D) =>
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+          ctx.fillStyle = "red"
+          ctx.fillRect(0, 0, 100, 100)
+          val data = ctx.createImageData(ctx.canvas.width, ctx.canvas.height)
+          for (y <- 0 until ctx.canvas.height; x <- 0 until ctx.canvas.width) {
+            val n = poisNoise.at(x/s, y/s)
+            val gray = math.floor(128 + 128 * n).toInt
+            data.data((y * ctx.canvas.width + x)*4) = gray
+            data.data((y * ctx.canvas.width + x)*4 + 1) = gray
+            data.data((y * ctx.canvas.width + x)*4 + 2) = gray
+            data.data((y * ctx.canvas.width + x)*4 + 3) = 255
+          }
+          ctx.putImageData(data, 0, 0)
+        } else None,
       *.svg(
+        *.style := "position: absolute; top: 0; left: 0",
         *.xmlns := "http://www.w3.org/2000/svg",
         *.width := s"${page.width / 100.0}in",
         *.height := s"${page.height / 100.0}in",
@@ -108,6 +124,15 @@ class City(page: AABB, seed: Int) {
           },
         )
       )
+    )
+  }
+
+  def image(attrs: AttributeModifier*)(draw: CanvasRenderingContext2D => _): VNode = {
+    *.canvas(
+      Seq(
+        *.hookInsert := { (vnode) => draw(vnode.elm.asInstanceOf[html.Canvas].getContext("2d").asInstanceOf[CanvasRenderingContext2D]) },
+        *.hookUpdate := { (_, vnode) => draw(vnode.elm.asInstanceOf[html.Canvas].getContext("2d").asInstanceOf[CanvasRenderingContext2D]) },
+      ) ++ attrs: _*
     )
   }
 
