@@ -29,11 +29,6 @@ class City(page: AABB, seed: Int) {
     showVoronoi: Boolean = false,
   )
 
-  case class Link private (a: Int, b: Int)
-  object Link {
-    def apply(a: Int, b: Int): Link = Link(math.min(a, b), math.max(a, b))
-  }
-
   def render(params: Params): VNode = {
     import params._
     implicit val r = new scala.util.Random(42)
@@ -41,37 +36,6 @@ class City(page: AABB, seed: Int) {
     val poisNoise = LayeredNoise.octaves(octaves)
     val pois = PoissonDisk.generateModulated(margins, (v: Vec2) => math.max(15, math.min(120, poisNoise.at(v/s) * noisiness + 80)), 120)
 
-    /*
-    val links = mutable.Buffer.empty[(Int, Int)]
-    def canPlaceLink(newLink: (Int, Int)): Boolean = {
-      if (links.contains(newLink) || links.contains((newLink._2, newLink._1)))
-        return false
-      val newLinkSeg = Segment2(pois(newLink._1), pois(newLink._2))
-      !links.exists { existingLink =>
-        !((existingLink._1 == newLink._1) || (existingLink._1 == newLink._2) || (existingLink._2 == newLink._1) || (existingLink._2 == newLink._2)) &&
-          Intersections.intersects(newLinkSeg, Segment2(pois(existingLink._1), pois(existingLink._2)))
-      }
-    }
-    for (i <- 1 until pois.size) {
-      val possibleLinks = Stream.continually((i, r.between(0, i))).take(32)
-      val link = possibleLinks
-        .filter(canPlaceLink)
-        .sortBy { case (a, b) => (pois(a) -> pois(b)).lengthSquared }
-        .headOption
-      link foreach (l => links.append(l))
-    }
-
-    for (_ <- 1 to nExtra) {
-      val possibleLinks = Stream.continually((r.between(0, pois.size), r.between(0, pois.size))).take(32)
-      val link = possibleLinks
-        .filter(l => l._1 != l._2)
-        .filter(l => !links.contains(l) && !links.contains((l._2, l._1)))
-        .filter(canPlaceLink)
-        .sortBy { case (a, b) => (pois(a) -> pois(b)).lengthSquared }
-        .headOption
-      link foreach (l => links.append(l))
-    }
-    */
     val voronoiLinks: Seq[(Int, Int)] = Voronoi.computeD3Links(pois).filter(_.length <= 200).map {
       case Segment2(a, b) => (pois.indexOf(a), pois.indexOf(b))
     }
@@ -85,9 +49,14 @@ class City(page: AABB, seed: Int) {
       val source = r.between(0, pois.size)
       val dest = r.between(0, pois.size)
       if (source != dest) {
+        val voronoiPath = BFS.dijkstraShortest[Int](source, { l =>
+          linkConns.getOrElse(l, Set.empty).map(c => (c, (pois(l) -> pois(c)).length)) ++
+            voronoiLinks.collect { case p if p._1 == l => p._2; case p if p._2 == l => p._1 }.map(c => (c, (pois(l) -> pois(c)).length * 2))
+        }, _ == dest)
+        println(voronoiPath)
         val existingPath = BFS.path[Int](source, l => linkConns.getOrElse(l, Set.empty).toSeq, _ == dest)
-        val voronoiPath = BFS.path[Int](source, l => voronoiLinks.collect { case p if p._1 == l => p._2; case p if p._2 == l => p._1 }, _ == dest)
-        assert(voronoiPath.nonEmpty)
+        //val voronoiPath = BFS.path[Int](source, l => voronoiLinks.collect { case p if p._1 == l => p._2; case p if p._2 == l => p._1 }, _ == dest)
+        assert(voronoiPath.nonEmpty, "there must be a path through the voronoi links")
         if (existingPath.isEmpty) {
           for (Seq(a, b) <- voronoiPath.get.sliding(2)) {
             linkConns.addBinding(a, b)
