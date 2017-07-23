@@ -41,8 +41,12 @@ class Tectonics(page: AABB, seed: Int) {
     val vectionX = new kit.pcg.Noise(r.nextInt())
     val vectionY = new kit.pcg.Noise(r.nextInt())
 
+    val rockDensity = new kit.pcg.Noise(r.nextInt())
+
     var particles: Seq[Vec2] = (1 to 1000) map { _ => r.withinAABB(page) }
-    val springs = Voronoi.computeD3Links(particles).filter(_.length < 60).map { case Segment2(a, b) => particles.indexOf(a) -> particles.indexOf(b) }
+    val densities = particles map { p => rockDensity.simplex2(p.x / 256, p.y / 256) < 0 }
+    val springs = Voronoi.computeD3Links(particles.indices, particles)
+      .filter { case (a, b) => Segment2(particles(a), particles(b)).length < 60 }
     val springsByIndex: Map[Int, Seq[Int]] = particles.indices.map({ i =>
       i -> springs.collect { case (a, b) if a == i => b; case (a, b) if b == i => a }
     })(collection.breakOut)
@@ -79,17 +83,17 @@ class Tectonics(page: AABB, seed: Int) {
           }
           ctx.putImageData(data, 0, 0)
         }
-        ctx.fillStyle = "red"
-        for (p <- particles) {
-          ctx.fillRect(p.x - 1, p.y - 1, 2, 2)
-        }
         ctx.strokeStyle = "red"
-        ctx.lineWidth = 0.5
+        ctx.lineWidth = 0.2
         for ((a, b) <- springs; if (particles(a) -> particles(b)).length < maxLength) {
           ctx.beginPath()
           ctx.moveTo(particles(a))
           ctx.lineTo(particles(b))
           ctx.stroke()
+        }
+        for ((p, i) <- particles.zipWithIndex) {
+          ctx.fillStyle = if (densities(i)) "red" else "blue"
+          ctx.fillRect(p.x - 1, p.y - 1, 2, 2)
         }
       }
     )

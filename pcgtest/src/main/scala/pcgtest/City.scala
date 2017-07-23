@@ -38,9 +38,8 @@ class City(page: AABB, seed: Int) {
     val poisNoise = LayeredNoise.octaves(octaves)
     val pois = PoissonDisk.generateModulated(margins, (v: Vec2) => math.max(15, math.min(120, poisNoise.at(v/s) * noisiness + 80)), 120)
 
-    val voronoiLinks: Seq[(Int, Int)] = Voronoi.computeD3Links(pois).filter(_.length <= 200).map {
-      case Segment2(a, b) => (pois.indexOf(a), pois.indexOf(b))
-    }
+    val voronoiLinks: Seq[(Int, Int)] = Voronoi.computeD3Links(pois.indices, pois)
+      .filter { case (a, b) => (pois(a) -> pois(b)).length < 200 }
 
     val linkConns = new mutable.HashMap[Int, mutable.Set[Int]] with mutable.MultiMap[Int, Int]
     val linkWeights = mutable.Map.empty[(Int, Int), Int].withDefault(_ => 0)

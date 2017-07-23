@@ -2,11 +2,12 @@ package kit
 
 import scala.collection.mutable
 import scala.scalajs.js
-import scala.scalajs.js.annotation.JSName
+import scala.scalajs.js.JSConverters._
+import scala.scalajs.js.annotation.JSGlobal
 
 object Voronoi {
   import js.native
-  @JSName("d3")
+  @JSGlobal("d3")
   @native
   object d3 extends js.Object {
     def voronoi(): js.Dynamic = native
@@ -22,15 +23,14 @@ object Voronoi {
     }
   }
 
-  def computeD3Links(sites: Iterable[Vec2]): Seq[Segment2] = {
-    val jsSites: js.Array[js.Array[Double]] = sites.map(v => js.Array(v.x, v.y))(collection.breakOut)
+  def computeD3Links[T](sites: Seq[T], pos: T => Vec2): Seq[(T, T)] = {
     val voronoi = d3.voronoi()
-    val diagram = voronoi(jsSites)
+    voronoi.x((p: T) => pos(p).x)
+    voronoi.y((p: T) => pos(p).y)
+    val diagram = voronoi(sites.toJSArray)
     val links: js.Array[js.Dynamic] = diagram.links().asInstanceOf[js.Array[js.Dynamic]]
     for (l <- links) yield {
-      val src = l.source.asInstanceOf[js.Array[Double]]
-      val tgt = l.target.asInstanceOf[js.Array[Double]]
-      Segment2(Vec2(src(0), src(1)), Vec2(tgt(0), tgt(1)))
+      (l.source.asInstanceOf[T], l.target.asInstanceOf[T])
     }
   }
 }
