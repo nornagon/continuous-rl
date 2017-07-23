@@ -23,6 +23,7 @@ object PCGTest {
     "roomspring" -> { (root: html.Div) => new RoomSpring(page, seed).main(root) },
     "bluenoise" -> { (root: html.Div) => new BlueNoise(page, seed).main(root) },
     "city" -> { (root: html.Div) => new City(page, seed).main(root) },
+    "tectonics" -> { (root: html.Div) => new Tectonics(page, seed).main(root) },
   )
 
   def main(root: html.Div): Unit = {

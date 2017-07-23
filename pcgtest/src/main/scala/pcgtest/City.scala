@@ -1,12 +1,11 @@
 package pcgtest
 
-import kit.pcg.{LayeredNoise, PoissonDisk}
-import kit._
 import kit.RandomImplicits._
+import kit._
+import kit.pcg.{LayeredNoise, PoissonDisk}
 import org.scalajs.dom
 import org.scalajs.dom.html
 import org.scalajs.dom.raw.CanvasRenderingContext2D
-import snabbdom.dsl.AttributeModifier
 import snabbdom.{VNode, dsl => *}
 
 import scala.collection.mutable
@@ -88,10 +87,10 @@ class City(page: AABB, seed: Int) {
     *.div(
       *.style := "position: relative",
       if (showDensity)
-        image(*.width := page.width, *.height := page.height, *.style := "position: absolute; top: 0; left: 0") { (ctx: CanvasRenderingContext2D) =>
+        *.renderCanvas(
+          *.width := page.width, *.height := page.height, *.style := "position: absolute; top: 0; left: 0"
+        ) { (ctx: CanvasRenderingContext2D) =>
           ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-          ctx.fillStyle = "red"
-          ctx.fillRect(0, 0, 100, 100)
           val data = ctx.createImageData(ctx.canvas.width, ctx.canvas.height)
           for (y <- 0 until ctx.canvas.height; x <- 0 until ctx.canvas.width) {
             val n = poisNoise.at(x/s, y/s)
@@ -124,15 +123,6 @@ class City(page: AABB, seed: Int) {
           },
         )
       )
-    )
-  }
-
-  def image(attrs: AttributeModifier*)(draw: CanvasRenderingContext2D => _): VNode = {
-    *.canvas(
-      Seq(
-        *.hookInsert := { (vnode) => draw(vnode.elm.asInstanceOf[html.Canvas].getContext("2d").asInstanceOf[CanvasRenderingContext2D]) },
-        *.hookUpdate := { (_, vnode) => draw(vnode.elm.asInstanceOf[html.Canvas].getContext("2d").asInstanceOf[CanvasRenderingContext2D]) },
-      ) ++ attrs: _*
     )
   }
 

@@ -1,5 +1,6 @@
 package snabbdom
 
+import org.scalajs.dom.html
 import org.scalajs.dom.raw._
 
 import scala.scalajs.js
@@ -92,4 +93,13 @@ object dsl {
   object g extends SVGVNodeElement { val elementName = "g" }
   object path extends SVGVNodeElement { val elementName = "path" }
   object circle extends SVGVNodeElement { val elementName = "circle" }
+
+  def renderCanvas(attrs: AttributeModifier*)(draw: CanvasRenderingContext2D => _): VNode = {
+    canvas(
+      Seq(
+        hookInsert := { (vnode) => draw(vnode.elm.asInstanceOf[html.Canvas].getContext("2d").asInstanceOf[CanvasRenderingContext2D]) },
+        hookUpdate := { (_, vnode) => draw(vnode.elm.asInstanceOf[html.Canvas].getContext("2d").asInstanceOf[CanvasRenderingContext2D]) },
+      ) ++ attrs: _*
+    )
+  }
 }
